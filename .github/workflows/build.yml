@@ -23,7 +23,16 @@ jobs:
           gradle-version: "9.8.2"
       - name: Compile Quartz mod
         run: gradle -p ${{ matrix.target.project }} build
+      - name: Stage the runtime mod JAR
+        shell: bash
+        run: |
+          mkdir -p dist
+          jar=$(find "${{ matrix.target.project }}/build/libs" -maxdepth 1 -type f -name '*.jar' ! -name '*-sources.jar' ! -name '*-dev.jar' | head -n 1)
+          test -n "$jar"
+          cp "$jar" "dist/Quartz-Client-Mod-${{ matrix.target.id }}.jar"
+          ls -lh dist
       - uses: actions/upload-artifact@v4
         with:
           name: quartz-client-mod-${{ matrix.target.id }}
-          path: ${{ matrix.target.project }}/build/libs/quartz-client-mod-*.jar
+          path: dist/*.jar
+          if-no-files-found: error
