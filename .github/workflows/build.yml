@@ -29,10 +29,10 @@ jobs:
           gradle-version: "9.8.2"
 
       - name: Apply the incremental Quartz update
-        run: |
-          Expand-Archive -Path quartz-client-update-v2.zip -DestinationPath . -Force
-          node quartz-update/apply-update.cjs
         shell: pwsh
+        run: |
+          tar -xf quartz-client-update-v2.zip
+          node quartz-update/apply-update.cjs
 
       - name: Build Quartz in-game mod
         run: gradle -p quartz-mod build
