@@ -5,14 +5,9 @@ import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.keymapping.v1.KeyMappingHelper;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry;
-import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents;
-import net.fabricmc.fabric.api.client.screen.v1.Screens;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.components.Button;
-import net.minecraft.client.gui.screens.TitleScreen;
 import net.minecraft.resources.Identifier;
-import net.minecraft.network.chat.Component;
 
 public final class QuartzModClient implements ClientModInitializer {
     private static KeyMapping openMenu;
@@ -27,21 +22,13 @@ public final class QuartzModClient implements ClientModInitializer {
                 "key.quartz.open_menu", InputConstants.Type.KEYBOARD, InputConstants.KEY_RSHIFT,
                 KeyMapping.Category.MISC));
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
+            QuartzTitleScreen.replaceVanilla(client);
             QuartzWardrobe.tick();
             if (client.getConnection() != null) QuartzMultiplayerWardrobe.tick();
             QuartzShotPreview.tick();
             while (openMenu.consumeClick()) {
                 if (client.gui.screen() == null && client.player != null) client.gui.setScreen(new QuartzMenuScreen(null));
             }
-        });
-        ScreenEvents.AFTER_INIT.register((client, screen, width, height) -> {
-            if (!(screen instanceof TitleScreen)) return;
-            Screens.getWidgets(screen).add(Button.builder(Component.literal("Quartz Client"),
-                    button -> client.gui.setScreen(new QuartzMenuScreen(screen))).bounds(8, 8, 98, 20).build());
-            ScreenEvents.afterExtract(screen).register((current, graphics, x, y, delta) -> {
-                String caption = "High Performance Minecraft Client";
-                graphics.text(client.font, caption, width - client.font.width(caption) - 8, 12, 0xFFF3EDFF, true);
-            });
         });
         HudElementRegistry.addLast(Identifier.fromNamespaceAndPath("quartz", "main_hud"), (graphics, tickCounter) -> {
             Minecraft client = Minecraft.getInstance();

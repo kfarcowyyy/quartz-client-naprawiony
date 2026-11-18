@@ -4,11 +4,14 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.Identifier;
 
 import java.util.function.IntFunction;
 
 public final class QuartzMenuScreen extends Screen {
+    private static final Identifier CRYSTAL = Identifier.fromNamespaceAndPath("quartz", "textures/wardrobe/quartz-crystal.png");
     private final Screen parent;
     private int panelWidth;
     private int left;
@@ -47,7 +50,7 @@ public final class QuartzMenuScreen extends Screen {
         graphics.fillGradient(0, 0, width, height, 0xF2101528, 0xF2251837);
         graphics.fill(left, top, left + panelWidth, top + 151, 0xFF695289);
         graphics.fill(left + 1, top + 1, left + panelWidth - 1, top + 150, 0xFF241E37);
-        graphics.fill(left + 12, top + 13, left + 18, top + 24, 0xFFD4B8FF);
+        graphics.blit(RenderPipelines.GUI_TEXTURED, CRYSTAL, left + 10, top + 8, 0, 0, 12, 18, 16, 24, 16, 24);
         graphics.text(font, title, left + 25, top + 15, 0xFFF6EEFF, false);
         QuartzGraphics.center(graphics, font, QuartzText.of("Change the menu shortcut in Controls", "Zmień skrót menu w Sterowaniu"),
                 width / 2, top + 136, 0xFFC8B7E5);

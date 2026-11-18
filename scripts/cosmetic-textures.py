@@ -92,6 +92,16 @@ def cape(colors):
 
 
 if __name__ == '__main__':
+    crystal = Canvas(16, 24)
+    for y in range(1, 23):
+        edge = max(1, 7 - min(y, 23 - y) * 2)
+        crystal.fill(edge, y, 16 - edge * 2, 1, '#9e8ed5')
+        if edge < 5:
+            crystal.fill(5, y, 6, 1, '#ece6fc')
+        if edge < 4:
+            crystal.fill(3, y, 2, 1, '#c5b7ed')
+    crystal.fill(7, 7, 4, 10, '#fbf8ff')
+    crystal.save(TEXTURES / 'quartz-crystal.png')
     for name, colors in SKINS.items():
         for accessory in ('none', 'crown', 'visor'):
             texture = skin(colors, accessory)
