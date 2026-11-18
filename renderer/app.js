@@ -13,6 +13,7 @@ const ICONS = {
   trash: '<path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/>',
   folder: '<path d="M3 6h6l2 2h10v11H3z"/>',
   plus: '<path d="M12 5v14M5 12h14"/>',
+  sparkle: '<path d="M12 2l2.5 7.5L22 12l-7.5 2.5L12 22l-2.5-7.5L2 12l7.5-2.5z"/>',
 };
 const icon = (n, s = 20) =>
   `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${ICONS[n]}</svg>`;
@@ -50,6 +51,7 @@ const PAGES = [
   ['play', 'Graj', 'play'],
   ['instances', 'Instancje', 'box'],
   ['browse', 'Przeglądaj', 'search'],
+  ['cosmetics', 'Kosmetyki', 'sparkle'],
   ['account', 'Konto', 'user'],
   ['settings', 'Ustawienia', 'gear'],
 ];
@@ -362,7 +364,11 @@ function viewAccount() {
 function bindAccount() {
   $('#ms-login').addEventListener('click', async (e) => {
     e.target.disabled = true;
-    try { state.account = await api('auth:microsoft'); toast('Zalogowano'); }
+    try {
+      const previous = state.account;
+      state.account = await api('auth:microsoft');
+      if (state.account && state.account.uuid !== previous?.uuid) toast('Zalogowano');
+    }
     catch (err) { toast(err.message, true); }
     renderNav(); render();
   });
@@ -383,6 +389,12 @@ function viewSettings() {
     <h1>Ustawienia</h1>
     <p class="sub">Zapisują się automatycznie.</p>
     <section class="card">
+      <label class="field">Language / Język
+        <select id="s-lang">
+          <option value="en">English</option>
+          <option value="pl">Polski</option>
+        </select>
+      </label>
       <label class="field">Pamięć RAM: <b id="ram-val">${s.ram} MB</b>
         <input type="range" id="ram" min="1024" max="16384" step="512" value="${s.ram}" />
       </label>
@@ -409,6 +421,15 @@ function bindSettings() {
   $('#s-opt').addEventListener('change', (e) => save({ optimize: e.target.checked }));
   $('#s-cf').addEventListener('change', (e) => save({ curseforgeKey: e.target.value.trim() }));
   $('#s-java').addEventListener('change', (e) => save({ javaPath: e.target.value.trim() }));
+  $('#s-lang').value = state.settings.language || 'en';
+  $('#s-lang').addEventListener('change', async (e) => {
+    try {
+      await save({ language: e.target.value });
+      quartzI18n.setLanguage(state.settings.language);
+      renderNav();
+      render();
+    } catch (error) { toast(error.message, true); }
+  });
 }
 
 /* ---------- SZCZEGÓŁY INSTANCJI ---------- */
@@ -588,6 +609,7 @@ const VIEWS = {
   browse: [viewBrowse, bindBrowse],
   account: [viewAccount, bindAccount],
   settings: [viewSettings, bindSettings],
+  cosmetics: [viewWardrobe, bindWardrobe],
 };
 
 function render() {
@@ -634,6 +656,7 @@ function liveUpdate() {
   liveUpdate();
   try {
     [state.settings, state.account] = await Promise.all([api('settings:get'), api('auth:status')]);
+    quartzI18n.setLanguage(state.settings.language);
     await refreshInstances();
     api('versions:list').then((v) => (state.versions = v)).catch((e) => toast('Lista wersji: ' + e.message, true));
   } catch (e) {

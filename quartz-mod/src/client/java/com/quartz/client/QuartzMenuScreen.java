@@ -4,44 +4,56 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.network.chat.Component;
+
+import java.util.function.IntFunction;
 
 public final class QuartzMenuScreen extends Screen {
-    public QuartzMenuScreen() { super(QuartzText.of("Quartz Client", "Quartz Client")); }
+    private final Screen parent;
+    private int panelWidth;
+    private int left;
+    private int top;
+
+    public QuartzMenuScreen(Screen parent) {
+        super(Component.literal("Quartz Client"));
+        this.parent = parent;
+    }
 
     @Override
     protected void init() {
-        int left = width / 2 - 110;
-        int top = height / 2 - 86;
-        addRenderableWidget(Button.builder(QuartzText.of("Mod list", "Lista modow"), b ->
-                Minecraft.getInstance().setScreen(new QuartzModListScreen(this)))
-                .bounds(left, top, 220, 28).build());
-        addRenderableWidget(Button.builder(QuartzText.of("HUD layout", "Pozycja HUD"), b ->
-                Minecraft.getInstance().setScreen(new QuartzHudEditorScreen(this)))
-                .bounds(left, top + 36, 220, 28).build());
-        addRenderableWidget(Button.builder(QuartzText.of("HUD settings", "Ustawienia HUD"), b ->
-                Minecraft.getInstance().setScreen(new QuartzSettingsScreen(this)))
-                .bounds(left, top + 72, 220, 28).build());
-        addRenderableWidget(Button.builder(QuartzText.of("Screenshots", "Zrzuty ekranu"), b ->
-                Minecraft.getInstance().setScreen(new QuartzScreenshotScreen(this)))
-                .bounds(left, top + 108, 220, 28).build());
-        addRenderableWidget(Button.builder(QuartzText.of("Resource packs folder", "Folder paczek zasobow"), b ->
-                QuartzFiles.openFolder("resourcepacks"))
-                .bounds(left, top + 144, 220, 24).build());
-        addRenderableWidget(Button.builder(QuartzText.of("Shader packs folder", "Folder shaderow"), b ->
-                QuartzFiles.openFolder("shaderpacks"))
-                .bounds(left, top + 174, 220, 24).build());
-        addRenderableWidget(Button.builder(QuartzText.of("Done", "Gotowe"), b -> onClose())
-                .bounds(left, top + 204, 220, 24).build());
+        panelWidth = Math.min(344, width - 16);
+        left = (width - panelWidth) / 2;
+        top = Math.max(8, (height - 158) / 2);
+        button(0, 0, "Mods", "Mody", () -> open(new QuartzModListScreen(this)));
+        button(1, 0, "Cosmetics", "Kosmetyki", () -> open(new QuartzWardrobeScreen(this)));
+        button(0, 1, "HUD layout", "Pozycja HUD", () -> open(new QuartzHudEditorScreen(this)));
+        button(1, 1, "HUD settings", "Ustawienia HUD", () -> open(new QuartzSettingsScreen(this)));
+        button(0, 2, "Screenshots", "Zrzuty ekranu", () -> open(new QuartzScreenshotScreen(this)));
+        button(1, 2, "Packs & shaders", "Paczki i shadery", () -> open(new QuartzPacksScreen(this)));
+        addRenderableWidget(Button.builder(Component.literal("×"), button -> onClose())
+                .bounds(left + panelWidth - 29, top + 8, 20, 20).build());
     }
+
+    private void button(int column, int row, String en, String pl, Runnable action) {
+        int size = (panelWidth - 34) / 2;
+        addRenderableWidget(Button.builder(QuartzText.of(en, pl), button -> action.run())
+                .bounds(left + 12 + column * (size + 10), top + 43 + 30 * row, size, 24).build());
+    }
+
+    private static void open(Screen page) { Minecraft.getInstance().setScreen(page); }
 
     @Override
     public void render(GuiGraphics graphics, int mouseX, int mouseY, float delta) {
-        renderBackground(graphics, mouseX, mouseY, delta);
-        graphics.drawCenteredString(font, title, width / 2, height / 2 - 120, 0xFFFFFFFF);
-        graphics.drawCenteredString(font,
-                QuartzText.of("Right Shift opens this menu. Change the key in Controls.",
-                        "Right Shift otwiera menu. Zmien klawisz w Sterowaniu."),
-                width / 2, height - 18, 0xFFB8C7F2);
+        graphics.fillGradient(0, 0, width, height, 0xF2101528, 0xF2251837);
+        graphics.fill(left, top, left + panelWidth, top + 151, 0xFF695289);
+        graphics.fill(left + 1, top + 1, left + panelWidth - 1, top + 150, 0xFF241E37);
+        graphics.fill(left + 12, top + 13, left + 18, top + 24, 0xFFD4B8FF);
+        graphics.drawString(font, title, left + 25, top + 15, 0xFFF6EEFF, false);
+        graphics.drawCenteredString(font, QuartzText.of("Change the menu shortcut in Controls", "Zmień skrót menu w Sterowaniu"),
+                width / 2, top + 136, 0xFFC8B7E5);
         super.render(graphics, mouseX, mouseY, delta);
     }
+
+    @Override
+    public void onClose() { open(parent); }
 }

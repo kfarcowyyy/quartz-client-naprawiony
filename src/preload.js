@@ -16,6 +16,8 @@ const INVOKE = new Set([
   'auth:logout',
   'settings:get',
   'settings:set',
+  'cosmetics:get',
+  'cosmetics:set',
   'browse:search',
   'browse:install',
   'game:play',

@@ -5,9 +5,14 @@ import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry;
+import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents;
+import net.fabricmc.fabric.api.client.screen.v1.Screens;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.gui.screens.TitleScreen;
 import net.minecraft.resources.Identifier;
+import net.minecraft.network.chat.Component;
 import org.lwjgl.glfw.GLFW;
 
 public final class QuartzModClient implements ClientModInitializer {
@@ -16,14 +21,30 @@ public final class QuartzModClient implements ClientModInitializer {
     @Override
     public void onInitializeClient() {
         QuartzConfig.load();
+        QuartzWardrobe.refresh();
+        QuartzShotPreview.start();
         openMenu = KeyBindingHelper.registerKeyBinding(new KeyMapping(
                 "key.quartz.open_menu", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_RIGHT_SHIFT,
                 KeyMapping.Category.MISC));
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
-            while (openMenu.consumeClick()) client.setScreen(new QuartzMenuScreen());
+            QuartzWardrobe.tick();
+            QuartzShotPreview.tick();
+            while (openMenu.consumeClick()) {
+                if (client.screen == null && client.player != null) client.setScreen(new QuartzMenuScreen(null));
+            }
+        });
+        ScreenEvents.AFTER_INIT.register((client, screen, width, height) -> {
+            if (!(screen instanceof TitleScreen)) return;
+            Screens.getButtons(screen).add(Button.builder(Component.literal("Quartz Client"),
+                    button -> client.setScreen(new QuartzMenuScreen(screen))).bounds(8, 8, 98, 20).build());
+            ScreenEvents.afterRender(screen).register((current, graphics, x, y, delta) -> {
+                String caption = "High Performance Minecraft Client";
+                graphics.drawString(client.font, caption, width - client.font.width(caption) - 8, 12, 0xFFF3EDFF, true);
+            });
         });
         HudElementRegistry.addLast(Identifier.fromNamespaceAndPath("quartz", "main_hud"), (graphics, tickCounter) -> {
             Minecraft client = Minecraft.getInstance();
+            if (!client.options.hideGui) QuartzShotPreview.popup(graphics);
             if (!QuartzConfig.data.hudEnabled || client.options.hideGui || client.player == null) return;
             String text = QuartzConfig.data.hudText
                     .replace("{fps}", Integer.toString(client.getFps()))
