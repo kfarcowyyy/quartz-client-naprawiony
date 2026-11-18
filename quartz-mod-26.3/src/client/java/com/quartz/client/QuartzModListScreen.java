@@ -1,7 +1,7 @@
 package com.quartz.client;
 
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
@@ -57,23 +57,23 @@ public final class QuartzModListScreen extends Screen {
                     ? file.resolveSibling(name + ".disabled")
                     : file.resolveSibling(name.substring(0, name.length() - ".disabled".length()));
             Files.move(file, next);
-            Minecraft.getInstance().setScreen(new QuartzModListScreen(parent));
+            Minecraft.getInstance().gui.setScreen(new QuartzModListScreen(parent));
         } catch (Exception ignored) { }
     }
 
     @Override
-    public void render(GuiGraphics graphics, int mouseX, int mouseY, float delta) {
-        renderBackground(graphics, mouseX, mouseY, delta);
-        graphics.drawCenteredString(font, title, width / 2, 18, 0xFFFFFFFF);
+    public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float delta) {
+        extractBackground(graphics, mouseX, mouseY, delta);
+        QuartzGraphics.center(graphics, font, title, width / 2, 18, 0xFFFFFFFF);
         String count = mods.size() > Math.max(1, (height - 112) / 27)
                 ? QuartzText.of("Showing the first entries. Open the mods folder for the full list.",
                     "Widoczne sa pierwsze pozycje. Otworz folder, aby zobaczyc cala liste.").getString()
                 : QuartzText.of("Changes take effect after restarting the game.",
                     "Zmiany zaczna dzialac po ponownym uruchomieniu gry.").getString();
-        graphics.drawCenteredString(font, count, width / 2, height - 34, 0xFFB8C7F2);
-        super.render(graphics, mouseX, mouseY, delta);
+        QuartzGraphics.center(graphics, font, count, width / 2, height - 34, 0xFFB8C7F2);
+        super.extractRenderState(graphics, mouseX, mouseY, delta);
     }
 
     @Override
-    public void onClose() { Minecraft.getInstance().setScreen(parent); }
+    public void onClose() { Minecraft.getInstance().gui.setScreen(parent); }
 }

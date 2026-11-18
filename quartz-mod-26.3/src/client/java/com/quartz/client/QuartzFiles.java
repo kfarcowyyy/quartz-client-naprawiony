@@ -1,8 +1,8 @@
 package com.quartz.client;
 
-import net.minecraft.Util;
 import net.minecraft.client.Minecraft;
 
+import java.awt.Desktop;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
@@ -13,7 +13,7 @@ public final class QuartzFiles {
         try {
             Path folder = Minecraft.getInstance().gameDirectory.toPath().resolve(name);
             Files.createDirectories(folder);
-            Util.getPlatform().openFile(folder.toFile());
+            Desktop.getDesktop().open(folder.toFile());
         } catch (Exception ignored) { }
     }
 }

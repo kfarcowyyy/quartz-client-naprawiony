@@ -1,7 +1,7 @@
 package com.quartz.client;
 
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
@@ -44,7 +44,7 @@ public final class QuartzSettingsScreen extends Screen {
         addRenderableWidget(Button.builder(QuartzText.of("Language: English / Polish", "Jezyk: English / Polski"), button -> {
             QuartzConfig.data.language = "pl".equals(QuartzConfig.data.language) ? "en" : "pl";
             QuartzConfig.save();
-            Minecraft.getInstance().setScreen(new QuartzSettingsScreen(parent));
+            Minecraft.getInstance().gui.setScreen(new QuartzSettingsScreen(parent));
         }).bounds(left + 155, height / 2 + 20, 145, 24).build());
         addRenderableWidget(Button.builder(QuartzText.of("Save", "Zapisz"), button -> saveAndClose())
                 .bounds(left, height / 2 + 52, 145, 24).build());
@@ -62,16 +62,16 @@ public final class QuartzSettingsScreen extends Screen {
     }
 
     @Override
-    public void render(GuiGraphics graphics, int mouseX, int mouseY, float delta) {
-        renderBackground(graphics, mouseX, mouseY, delta);
-        graphics.drawCenteredString(font, title, width / 2, height / 2 - 90, 0xFFFFFFFF);
-        graphics.drawString(font,
+    public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float delta) {
+        extractBackground(graphics, mouseX, mouseY, delta);
+        QuartzGraphics.center(graphics, font, title, width / 2, height / 2 - 90, 0xFFFFFFFF);
+        graphics.text(font,
                 QuartzText.of("Placeholders: {fps} and {cps}; color format: AARRGGBB",
                         "Zmienne: {fps} i {cps}; kolor w formacie AARRGGBB"),
                 width / 2 - 150, height / 2 - 72, 0xFFB8C7F2);
-        super.render(graphics, mouseX, mouseY, delta);
+        super.extractRenderState(graphics, mouseX, mouseY, delta);
     }
 
     @Override
-    public void onClose() { Minecraft.getInstance().setScreen(parent); }
+    public void onClose() { Minecraft.getInstance().gui.setScreen(parent); }
 }
