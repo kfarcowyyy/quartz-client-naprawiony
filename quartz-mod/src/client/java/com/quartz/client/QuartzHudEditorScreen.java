@@ -4,12 +4,12 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.input.MouseButtonEvent;
 
 public final class QuartzHudEditorScreen extends Screen {
     private final Screen parent;
     private boolean dragging;
-    private int dragX;
-    private int dragY;
+    private int dragX, dragY;
 
     public QuartzHudEditorScreen(Screen parent) {
         super(QuartzText.of("HUD layout", "Pozycja HUD"));
@@ -18,7 +18,7 @@ public final class QuartzHudEditorScreen extends Screen {
 
     @Override
     protected void init() {
-        addRenderableWidget(Button.builder(QuartzText.of("Done", "Gotowe"), button -> onClose())
+        addRenderableWidget(Button.builder(QuartzText.of("Done", "Gotowe"), b -> onClose())
                 .bounds(width / 2 - 60, height - 40, 120, 24).build());
     }
 
@@ -26,45 +26,44 @@ public final class QuartzHudEditorScreen extends Screen {
     public void render(GuiGraphics graphics, int mouseX, int mouseY, float delta) {
         renderBackground(graphics, mouseX, mouseY, delta);
         String sample = QuartzConfig.data.hudText.replace("{fps}", "144").replace("{cps}", "8 | 3");
-        int x = QuartzConfig.data.hudX;
-        int y = QuartzConfig.data.hudY;
+        int x = QuartzConfig.data.hudX, y = QuartzConfig.data.hudY;
         graphics.fill(x, y, x + font.width(sample) + 12, y + 18, QuartzConfig.data.background);
         graphics.drawString(font, sample, x + 6, y + 5, QuartzConfig.data.foreground, false);
         graphics.drawCenteredString(font,
-                QuartzText.of("Drag the HUD panel to move it", "Przeciagnij panel, aby zmienic jego polozenie"),
+                QuartzText.of("Drag the HUD panel to move it", "Przeciagnij panel, aby go przesunac"),
                 width / 2, 16, 0xFFFFFFFF);
         super.render(graphics, mouseX, mouseY, delta);
     }
 
     @Override
-    public boolean mouseClicked(double mouseX, double mouseY, int button) {
-        int x = QuartzConfig.data.hudX;
-        int y = QuartzConfig.data.hudY;
+    public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+        double mouseX = event.x(), mouseY = event.y();
+        int x = QuartzConfig.data.hudX, y = QuartzConfig.data.hudY;
         int w = font.width("FPS 144  |  CPS 8 | 3") + 12;
-        if (button == 0 && mouseX >= x && mouseX <= x + w && mouseY >= y && mouseY <= y + 20) {
+        if (event.button() == 0 && mouseX >= x && mouseX <= x + w && mouseY >= y && mouseY <= y + 20) {
             dragging = true;
             dragX = (int) mouseX - x;
             dragY = (int) mouseY - y;
             return true;
         }
-        return super.mouseClicked(mouseX, mouseY, button);
+        return super.mouseClicked(event, doubleClick);
     }
 
     @Override
-    public boolean mouseDragged(double mouseX, double mouseY, int button, double deltaX, double deltaY) {
-        if (dragging && button == 0) {
-            QuartzConfig.data.hudX = Math.max(0, Math.min(width - 20, (int) mouseX - dragX));
-            QuartzConfig.data.hudY = Math.max(0, Math.min(height - 30, (int) mouseY - dragY));
+    public boolean mouseDragged(MouseButtonEvent event, double deltaX, double deltaY) {
+        if (dragging && event.button() == 0) {
+            QuartzConfig.data.hudX = Math.max(0, Math.min(width - 20, (int) event.x() - dragX));
+            QuartzConfig.data.hudY = Math.max(0, Math.min(height - 30, (int) event.y() - dragY));
             QuartzConfig.save();
             return true;
         }
-        return super.mouseDragged(mouseX, mouseY, button, deltaX, deltaY);
+        return super.mouseDragged(event, deltaX, deltaY);
     }
 
     @Override
-    public boolean mouseReleased(double mouseX, double mouseY, int button) {
-        if (button == 0) dragging = false;
-        return super.mouseReleased(mouseX, mouseY, button);
+    public boolean mouseReleased(MouseButtonEvent event) {
+        if (event.button() == 0) dragging = false;
+        return super.mouseReleased(event);
     }
 
     @Override
