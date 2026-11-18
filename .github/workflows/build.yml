@@ -3,10 +3,14 @@ on:
   push:
     branches: ["quartz-mod-first-build"]
   workflow_dispatch:
-permissions:
-  contents: read
 jobs:
   build-mod:
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - { id: "1.21.11", project: "quartz-mod" }
+          - { id: "26.3", project: "quartz-mod-26.3" }
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -18,8 +22,8 @@ jobs:
         with:
           gradle-version: "9.8.2"
       - name: Compile Quartz mod
-        run: gradle -p quartz-mod build
+        run: gradle -p ${{ matrix.target.project }} build
       - uses: actions/upload-artifact@v4
         with:
-          name: quartz-client-mod-1.21.11
-          path: quartz-mod/build/libs/quartz-client-mod-*.jar
+          name: quartz-client-mod-${{ matrix.target.id }}
+          path: ${{ matrix.target.project }}/build/libs/quartz-client-mod-*.jar
