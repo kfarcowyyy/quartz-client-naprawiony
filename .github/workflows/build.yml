@@ -2,6 +2,7 @@ name: Build Quartz Client
 
 on:
   push:
+    branches: ["quartz-mod-first-build"]
     tags: ["v*"]
   workflow_dispatch:
 
@@ -18,20 +19,45 @@ jobs:
         with:
           node-version: 20
 
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "9.8.2"
+
+      - name: Apply the incremental Quartz update
+        run: |
+          Expand-Archive -Path quartz-client-update-v2.zip -DestinationPath . -Force
+          node quartz-update/apply-update.cjs
+        shell: pwsh
+
+      - name: Build Quartz in-game mod
+        run: gradle -p quartz-mod build
+
       - name: Install dependencies
         run: npm install
 
       - name: Build .exe
         run: npm run dist
 
+      - name: Add Quartz in-game mod to artifacts
+        shell: pwsh
+        run: |
+          $mod = Get-ChildItem quartz-mod/build/libs/quartz-client-mod-*.jar | Where-Object { $_.Name -notmatch "sources|dev" } | Select-Object -First 1
+          if (-not $mod) { throw "Quartz mod JAR was not produced" }
+          Copy-Item $mod.FullName dist/Quartz-Client-Mod-1.21.11.jar
+
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: quartz-client-windows
-          path: dist/*.exe
+          path: dist/*
 
       - name: Publish release (tags only)
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
-          files: dist/*.exe
+          files: dist/*
