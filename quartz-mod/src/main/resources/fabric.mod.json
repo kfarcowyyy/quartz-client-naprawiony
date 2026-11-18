@@ -6,8 +6,9 @@
   "description": "A lightweight, configurable Quartz HUD and in-game client menu.",
   "authors": ["Quartz Client"],
   "license": "MIT",
-  "environment": "client",
+  "environment": "*",
   "entrypoints": {
+    "main": ["com.quartz.network.QuartzWardrobeSync"],
     "client": ["com.quartz.client.QuartzModClient"]
   },
   "mixins": [{ "config": "quartz.client.mixins.json", "environment": "client" }],

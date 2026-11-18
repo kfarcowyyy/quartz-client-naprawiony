@@ -13,7 +13,7 @@ function viewWardrobe() {
     <button class="btn primary" id="wardrobe-account">${wardrobeCopy('Account', 'Konto')}</button></section></div>`;
 
   return `<div class="page wardrobe"><h1>${wardrobeCopy('Cosmetics', 'Kosmetyki')}</h1>
-    <p class="sub">${wardrobeCopy('Free looks for the Quartz mod. Accessories use a Quartz skin.', 'Darmowy wygląd w modzie Quartz. Dodatki wymagają skina Quartz.')}</p>
+    <p class="sub">${wardrobeCopy('Free looks for the Quartz mod. Accessories use a Quartz skin. Other players can see your look on servers with Quartz wardrobe sync.', 'Darmowy wygląd w modzie Quartz. Dodatki wymagają skina Quartz. Inni gracze mogą zobaczyć Twój wygląd na serwerach z synchronizacją garderoby Quartz.')}</p>
     <div id="wardrobe-content">${wardrobe ? wardrobeMarkup() : wardrobeCopy('Loading…', 'Wczytywanie…')}</div></div>`;
 }
 

@@ -18,6 +18,14 @@ import java.util.List;
 public final class QuartzWardrobe {
     public record Item(String id, String english, String polish) {}
     public record Equipped(String skin, String cape, String accessory) {}
+    public record Textures(ClientAsset.Texture skin, ClientAsset.Texture cape) {
+        public PlayerSkin apply(PlayerSkin original) {
+            if (skin == null && cape == null) return original;
+            return new PlayerSkin(skin == null ? original.body() : skin,
+                    cape == null ? original.cape() : cape, original.elytra(),
+                    skin == null ? original.model() : PlayerModelType.WIDE, original.secure());
+        }
+    }
 
     public static final List<Item> SKINS = List.of(
             new Item("account", "Account skin", "Skin konta"),
@@ -37,8 +45,7 @@ public final class QuartzWardrobe {
     private static final Gson GSON = new Gson();
     private static final Equipped DEFAULT = new Equipped("account", "none", "none");
     private static Equipped active = DEFAULT;
-    private static ClientAsset.Texture skinTexture;
-    private static ClientAsset.Texture capeTexture;
+    private static Textures currentTextures = new Textures(null, null);
     private static int ticks;
 
     private QuartzWardrobe() {}
@@ -62,8 +69,12 @@ public final class QuartzWardrobe {
     private static void update(Equipped next) {
         if (active.equals(next)) return;
         active = next;
-        skinTexture = "account".equals(next.skin()) ? null : texture("skin-" + next.skin() + "-" + next.accessory());
-        capeTexture = "none".equals(next.cape()) ? null : texture("cape-" + next.cape());
+        currentTextures = textures(next);
+    }
+
+    static Textures textures(Equipped choice) {
+        return new Textures("account".equals(choice.skin()) ? null : texture("skin-" + choice.skin() + "-" + choice.accessory()),
+                "none".equals(choice.cape()) ? null : texture("cape-" + choice.cape()));
     }
 
     public static void refresh() {
@@ -113,9 +124,6 @@ public final class QuartzWardrobe {
     }
 
     public static PlayerSkin apply(PlayerSkin original) {
-        if (skinTexture == null && capeTexture == null) return original;
-        return new PlayerSkin(skinTexture == null ? original.body() : skinTexture,
-                capeTexture == null ? original.cape() : capeTexture,
-                original.elytra(), skinTexture == null ? original.model() : PlayerModelType.WIDE, original.secure());
+        return currentTextures.apply(original);
     }
 }

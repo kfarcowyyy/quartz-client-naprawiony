@@ -21,12 +21,14 @@ public final class QuartzModClient implements ClientModInitializer {
     public void onInitializeClient() {
         QuartzConfig.load();
         QuartzWardrobe.refresh();
+        QuartzMultiplayerWardrobe.initialize();
         QuartzShotPreview.start();
         openMenu = KeyMappingHelper.registerKeyMapping(new KeyMapping(
                 "key.quartz.open_menu", InputConstants.Type.KEYBOARD, InputConstants.KEY_RSHIFT,
                 KeyMapping.Category.MISC));
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             QuartzWardrobe.tick();
+            if (client.getConnection() != null) QuartzMultiplayerWardrobe.tick();
             QuartzShotPreview.tick();
             while (openMenu.consumeClick()) {
                 if (client.gui.screen() == null && client.player != null) client.gui.setScreen(new QuartzMenuScreen(null));

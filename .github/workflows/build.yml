@@ -32,6 +32,8 @@ jobs:
           test -n "$jar"
           jar tf "$jar" > dist/jar-entries.txt
           grep -Fx 'com/quartz/client/QuartzModClient.class' dist/jar-entries.txt
+          grep -Fx 'com/quartz/network/QuartzWardrobeSync.class' dist/jar-entries.txt
+          grep -Fx 'assets/quartz/textures/wardrobe/cape-crystal.png' dist/jar-entries.txt
           grep -Fx 'fabric.mod.json' dist/jar-entries.txt
           cp "$jar" "dist/Quartz-Client-Mod-${{ matrix.target.id }}.jar"
           ls -lh dist
@@ -42,31 +44,30 @@ jobs:
           if-no-files-found: error
   windows:
     runs-on: windows-latest
+    needs: build-mod
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
-      - uses: actions/setup-java@v4
+      - uses: actions/download-artifact@v4
         with:
-          distribution: temurin
-          java-version: "25"
-      - uses: gradle/actions/setup-gradle@v4
+          name: quartz-client-mod-1.21.11
+          path: quartz-mods/fabric/1.21.11
+      - uses: actions/download-artifact@v4
         with:
-          gradle-version: "9.8.2"
-      - name: Build and stage the Fabric 1.21.11 mod
+          name: quartz-client-mod-26.3
+          path: quartz-mods/fabric/26.3
+      - name: Bundle Fabric builds and their dependencies
         shell: bash
         run: |
-          gradle -p quartz-mod build
-          jar=$(find quartz-mod/build/libs -maxdepth 1 -type f -name '*.jar' ! -name '*-sources.jar' ! -name '*-dev.jar' | head -n 1)
-          test -n "$jar"
-          jar tf "$jar" > jar-entries.txt
-          grep -Fx 'com/quartz/client/QuartzWardrobeScreen.class' jar-entries.txt
-          grep -Fx 'assets/quartz/textures/wardrobe/cape-crystal.png' jar-entries.txt
-          folder=quartz-mods/fabric/1.21.11
-          mkdir -p "$folder"
-          cp "$jar" "$folder/quartz-client.jar"
-          curl --fail --location --retry 3 'https://maven.fabricmc.net/net/fabricmc/fabric-api/fabric-api/0.141.6+1.21.11/fabric-api-0.141.6+1.21.11.jar' -o "$folder/fabric-api.jar"
+          stage() {
+            local mc="$1" api="$2" folder="quartz-mods/fabric/$1"
+            mv "$folder/Quartz-Client-Mod-$mc.jar" "$folder/quartz-client.jar"
+            curl --fail --location --retry 3 "https://maven.fabricmc.net/net/fabricmc/fabric-api/fabric-api/$api/fabric-api-$api.jar" -o "$folder/fabric-api.jar"
+          }
+          stage '1.21.11' '0.141.6+1.21.11'
+          stage '26.3' '0.166.2+26.3'
       - run: npm install --no-audit --no-fund
       - run: npm run dist
         env:
