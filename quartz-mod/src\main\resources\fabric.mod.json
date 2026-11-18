@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "id": "quartz",
+  "version": "${version}",
+  "name": "Quartz Client",
+  "description": "A lightweight, configurable Quartz HUD and in-game client menu.",
+  "authors": ["Quartz Client"],
+  "license": "MIT",
+  "environment": "client",
+  "entrypoints": {
+    "client": ["com.quartz.client.QuartzModClient"]
+  },
+  "mixins": [{ "config": "quartz.client.mixins.json", "environment": "client" }],
+  "depends": {
+    "fabricloader": ">=0.20.1",
+    "minecraft": "~1.21.11",
+    "java": ">=21",
+    "fabric-api": "*"
+  }
+}
