@@ -13,7 +13,10 @@ const extras = require('./extras');
 const loaders = require('./loaders');
 const java = require('./java');
 const launcher = require('./launcher');
-const content = require('./content');
+const content = require('./instance-content');
+const cosmetics = require('./cosmetics');
+const quartzMod = require('./quartz-mod');
+const { pathToFileURL } = require('node:url');
 
 let win;
 const send = (ch, data) => win && !win.isDestroyed() && win.webContents.send(ch, data);
@@ -37,6 +40,7 @@ function createWindow() {
     minHeight: 620,
     backgroundColor: '#f6f3f9',
     title: 'Quartz Client',
+    icon: path.join(__dirname, '..', 'renderer', 'quartz-icon.png'),
     autoHideMenuBar: true,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
@@ -53,8 +57,33 @@ function createWindow() {
 
 // ---- IPC ----
 handle('versions:list', () => versions.list());
-handle('settings:get', () => store.get());
-handle('settings:set', (patch) => store.set(patch));
+function publicSettings({ account, ...settings }) { return settings; }
+handle('settings:get', () => publicSettings(store.get()));
+handle('settings:set', (patch) => {
+  const allowed = ['ram', 'curseforgeKey', 'voicechat', 'javaPath', 'language'];
+  return publicSettings(store.set(Object.fromEntries(allowed.filter((key) => Object.hasOwn(patch, key))
+    .map((key) => [key, patch[key]]))));
+});
+handle('cosmetics:get', () => {
+  const account = auth.status();
+  return { skins: cosmetics.listSkins(account), equipped: cosmetics.read(account) };
+});
+handle('cosmetics:add-skin', async (slim) => {
+  const account = auth.status();
+  const selection = await dialog.showOpenDialog(win, {
+    properties: ['openFile'],
+    filters: [{ name: 'Minecraft skin PNG', extensions: ['png'] }],
+  });
+  if (!selection.canceled && auth.status()?.uuid === account?.uuid) {
+    cosmetics.addSkin(account, selection.filePaths[0], slim === true);
+  }
+});
+handle('cosmetics:equip-skin', (id) => cosmetics.selectSkin(auth.status(), id));
+handle('cosmetics:remove-skin', (id) => cosmetics.removeSkin(auth.status(), id));
+handle('cosmetics:capes', async () => {
+  const account = auth.status();
+  return account?.type === 'microsoft' ? cosmetics.loadCapes(account, await auth.authorization()) : [];
+});
 
 handle('instances:list', () => instances.list());
 handle('instances:delete', (id) => instances.remove(id));
@@ -75,8 +104,9 @@ handle('content:import', async (id, kind) => {
 });
 handle('instances:create', async (o) => {
   const inst = instances.create(o);
+  quartzMod.install(inst);
   send('status', 'Instaluję dodatki...');
-  await extras.applyDefaults(inst, { optimize: !!o.optimize, voicechat: !!o.voicechat }, (m) =>
+  await extras.applyDefaults(inst, { voicechat: !!o.voicechat }, (m) =>
     send('log', m)
   );
   send('status', '');
@@ -84,7 +114,14 @@ handle('instances:create', async (o) => {
 });
 
 handle('auth:status', () => auth.status());
-handle('auth:microsoft', () => auth.microsoft());
+handle('auth:microsoft', async () => {
+  try {
+    return await auth.microsoft();
+  } catch (error) {
+    if (/error\.gui\.close/i.test(String(error?.message || error))) return auth.status();
+    throw error;
+  }
+});
 handle('auth:offline', (name) => auth.offline(name));
 handle('auth:logout', () => auth.logout());
 
@@ -120,6 +157,15 @@ handle('game:play', async (id) => {
 
   send('status', 'Przygotowuję loader...');
   const customId = await loaders.prepare(inst);
+  const hasQuartz = quartzMod.install(inst);
+  if (!hasQuartz && inst.loader !== 'vanilla') {
+    send('log', `[Quartz] Mod build unavailable for ${inst.loader} / Minecraft ${inst.mcVersion}.`);
+  }
+  const wardrobeAccount = auth.status();
+  const wardrobeFile = cosmetics.profileFile(wardrobeAccount);
+  if (hasQuartz && wardrobeAccount?.type === 'microsoft') {
+    cosmetics.loadCapes(wardrobeAccount, authorization).catch(() => {});
+  }
 
   if (settings.voicechat) {
     send('status', 'Sprawdzam Simple Voice Chat...');
@@ -133,6 +179,10 @@ handle('game:play', async (id) => {
     javaPath,
     customId,
     ram: settings.ram,
+    quartzArgs: hasQuartz && wardrobeFile ? [
+      `-Dquartz.wardrobe=${pathToFileURL(wardrobeFile).href}`,
+      `-Dquartz.language=${settings.language === 'pl' ? 'pl' : 'en'}`,
+    ] : [],
     onLog: (m) => send('log', m),
     onProgress: (p) => send('progress', p),
     onClose: (code) => {
@@ -143,5 +193,8 @@ handle('game:play', async (id) => {
   send('status', 'Gra uruchomiona');
 });
 
-app.whenReady().then(createWindow);
+app.whenReady().then(() => {
+  app.setAppUserModelId('pl.quartz.client');
+  createWindow();
+});
 app.on('window-all-closed', () => app.quit());

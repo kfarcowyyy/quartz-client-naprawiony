@@ -3,18 +3,6 @@ const path = require('path');
 const modrinth = require('./modrinth');
 const paths = require('./paths');
 
-// Paczka "Quartz Boost": wydajność + lista modów w grze (Mod Menu)
-const BOOST = [
-  'sodium',
-  'lithium',
-  'ferrite-core',
-  'entityculling',
-  'immediatelyfast',
-  'modernfix',
-  'iris',
-  'modmenu',
-];
-
 function installedMods(inst) {
   const dir = path.join(paths.instDir(inst.id), 'mods');
   return fs.existsSync(dir) ? fs.readdirSync(dir).map((n) => n.toLowerCase()) : [];
@@ -39,11 +27,10 @@ async function ensureVoiceChat(inst, log) {
 }
 
 // Przy tworzeniu nowej instancji
-async function applyDefaults(inst, { optimize, voicechat }, log) {
+async function applyDefaults(inst, { voicechat }, log) {
   if (!isModded(inst)) return;
   await tryInstall('fabric-api', inst, log);
   if (voicechat) await tryInstall('simple-voice-chat', inst, log);
-  if (optimize) for (const slug of BOOST) await tryInstall(slug, inst, log);
 }
 
 module.exports = { ensureVoiceChat, applyDefaults };

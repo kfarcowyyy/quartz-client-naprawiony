@@ -22,7 +22,7 @@ const JVM_FLAGS = [
   '-XX:MaxTenuringThreshold=1',
 ];
 
-function launch({ inst, authorization, javaPath, customId, ram, onLog, onProgress, onClose }) {
+function launch({ inst, authorization, javaPath, customId, ram, quartzArgs = [], onLog, onProgress, onClose }) {
   return new Promise((resolve, reject) => {
     const client = new Client();
     client.on('debug', (m) => onLog(String(m)));
@@ -38,7 +38,7 @@ function launch({ inst, authorization, javaPath, customId, ram, onLog, onProgres
         version: { number: inst.mcVersion, type: 'release', custom: customId },
         memory: { max: `${ram}M`, min: '1024M' },
         overrides: { gameDirectory: paths.instDir(inst.id) },
-        customArgs: JVM_FLAGS,
+        customArgs: [...JVM_FLAGS, ...quartzArgs],
       })
       .then((proc) => (proc ? resolve() : reject(new Error('Gra się nie uruchomiła - sprawdź dziennik'))))
       .catch(reject);

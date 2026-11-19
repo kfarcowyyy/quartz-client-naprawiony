@@ -6,9 +6,9 @@ const defaults = {
   ram: 4096,
   curseforgeKey: '',
   account: null,
-  optimize: true,
   voicechat: true,
   javaPath: '',
+  language: 'en',
 };
 
 const file = () => path.join(app.getPath('userData'), 'settings.json');

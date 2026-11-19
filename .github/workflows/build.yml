@@ -1,37 +1,116 @@
 name: Build Quartz Client
-
 on:
   push:
+    branches: ["quartz-mod-first-build"]
     tags: ["v*"]
+  pull_request:
   workflow_dispatch:
-
 permissions:
-  contents: write
-
+  contents: read
 jobs:
-  build-windows:
-    runs-on: windows-latest
+  build-mod:
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - { id: "1.21.11", project: "quartz-mod" }
+          - { id: "26.3", project: "quartz-mod-26.3" }
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "25"
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "9.8.2"
+      - name: Compile Quartz mod
+        run: gradle -p ${{ matrix.target.project }} build
+      - name: Stage the runtime mod JAR
+        shell: bash
+        run: |
+          mkdir -p dist
+          jar=$(find "${{ matrix.target.project }}/build/libs" -maxdepth 1 -type f -name '*.jar' ! -name '*-sources.jar' ! -name '*-dev.jar' | head -n 1)
+          test -n "$jar"
+          jar tf "$jar" > dist/jar-entries.txt
+          grep -Fx 'com/quartz/client/QuartzModClient.class' dist/jar-entries.txt
+          grep -Fx 'com/quartz/client/QuartzTitleScreen.class' dist/jar-entries.txt
+          grep -Fx 'com/quartz/client/QuartzWardrobeScreen.class' dist/jar-entries.txt
+          grep -Fx 'com/quartz/client/QuartzModListScreen.class' dist/jar-entries.txt
+          grep -Fx 'com/quartz/client/QuartzHudEditorScreen.class' dist/jar-entries.txt
+          grep -Fx 'com/quartz/client/QuartzSettingsScreen.class' dist/jar-entries.txt
+          grep -Fx 'com/quartz/client/QuartzSafeScreen.class' dist/jar-entries.txt
+          grep -Fx 'com/quartz/client/QuartzHud.class' dist/jar-entries.txt
+          grep -Fx 'com/quartz/client/QuartzHudModule.class' dist/jar-entries.txt
+          grep -Fx 'com/quartz/client/QuartzHudSettingsScreen.class' dist/jar-entries.txt
+          grep -Fx 'com/quartz/client/QuartzPackDetailsScreen.class' dist/jar-entries.txt
+          grep -Fx 'com/quartz/client/QuartzPackVersionScreen.class' dist/jar-entries.txt
+          grep -Fx 'com/quartz/client/QuartzPackDownloads.class' dist/jar-entries.txt
+          grep -Fx 'assets/quartz/textures/wardrobe/quartz-crystal.png' dist/jar-entries.txt
+          grep -Fx 'assets/quartz/textures/gui/app-crystal.png' dist/jar-entries.txt
+          grep -E '^META-INF/jars/imageio-webp-.*\.jar$' dist/jar-entries.txt
+          grep -Fx 'fabric.mod.json' dist/jar-entries.txt
+          cp "$jar" "dist/Quartz-Client-Mod-${{ matrix.target.id }}.jar"
+          ls -lh dist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: quartz-client-mod-${{ matrix.target.id }}
+          path: dist/*.jar
+          if-no-files-found: error
+  windows:
+    runs-on: windows-latest
+    needs: build-mod
+    steps:
+      - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
-
-      - name: Install dependencies
-        run: npm install
-
-      - name: Build .exe
-        run: npm run dist
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
+          node-version: "22"
+      - uses: actions/download-artifact@v4
         with:
-          name: quartz-client-windows
-          path: dist/*.exe
-
-      - name: Publish release (tags only)
-        if: startsWith(github.ref, 'refs/tags/')
-        uses: softprops/action-gh-release@v2
+          name: quartz-client-mod-1.21.11
+          path: quartz-mods/fabric/1.21.11
+      - uses: actions/download-artifact@v4
         with:
-          files: dist/*.exe
+          name: quartz-client-mod-26.3
+          path: quartz-mods/fabric/26.3
+      - name: Bundle Fabric builds and their dependencies
+        shell: bash
+        run: |
+          stage() {
+            local mc="$1" api="$2" folder="quartz-mods/fabric/$1"
+            mv "$folder/Quartz-Client-Mod-$mc.jar" "$folder/quartz-client.jar"
+            curl --fail --location --retry 3 "https://maven.fabricmc.net/net/fabricmc/fabric-api/fabric-api/$api/fabric-api-$api.jar" -o "$folder/fabric-api.jar"
+          }
+          stage '1.21.11' '0.141.6+1.21.11'
+          stage '26.3' '0.166.2+26.3'
+      - run: npm install --no-audit --no-fund
+      - run: npm run dist
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: "false"
+      - name: Verify packaged startup files and bundled Fabric mods
+        run: node scripts/verify-windows-package.cjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Quartz-Client-Windows
+          path: dist/Quartz-Client-*.exe
+          if-no-files-found: error
+  release:
+    if: github.ref_type == 'tag' && startsWith(github.ref_name, 'v')
+    needs: windows
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: Quartz-Client-Windows
+          path: release-files
+      - name: Publish the Windows installer
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          version="${RELEASE_TAG#v}"
+          gh release create "$RELEASE_TAG" release-files/Quartz-Client-Setup-*.exe --verify-tag --generate-notes --title "Quartz Client $version"
