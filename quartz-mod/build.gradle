@@ -19,6 +19,15 @@ dependencies {
     mappings loom.officialMojangMappings()
     modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
     modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
+    // Native-free image decoder for WebP project assets from Modrinth.
+    def imageVersion = "3.15.3"
+    implementation "com.twelvemonkeys.imageio:imageio-webp:${imageVersion}"
+    ["imageio-webp", "imageio-core", "imageio-metadata"].each {
+        include "com.twelvemonkeys.imageio:${it}:${imageVersion}"
+    }
+    ["common-lang", "common-io", "common-image"].each {
+        include "com.twelvemonkeys.common:${it}:${imageVersion}"
+    }
 }
 
 processResources {

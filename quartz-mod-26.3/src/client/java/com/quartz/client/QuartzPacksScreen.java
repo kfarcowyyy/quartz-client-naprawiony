@@ -52,7 +52,7 @@ public final class QuartzPacksScreen extends QuartzSafeScreen {
         input.setValue(query);
         input.setResponder(value -> query = value);
         input.setHint(QuartzText.of("Search Modrinth…", "Szukaj w Modrinth…"));
-        add(QuartzText.of("Version", "Wersja").append(": " + (version.isBlank() ? QuartzText.of("Any", "Każda").getString() : version)),
+        add((version.isBlank() ? QuartzText.of("Any version", "Każda wersja") : QuartzText.of("Version " + version, "Wersja " + version)),
                 left + span - 150, 51, 76, false, () -> minecraft.gui.setScreen(new QuartzPackVersionScreen(this, version, selected -> {
                     version = selected;
                     minecraft.gui.setScreen(this);

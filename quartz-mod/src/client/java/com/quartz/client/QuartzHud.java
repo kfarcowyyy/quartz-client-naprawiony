@@ -28,7 +28,32 @@ final class QuartzHud {
     private static String cpuRam = "";
     private static Object world;
     private static double previousX, previousZ, speed;
-    private static boolean hasPosition;
+    private static boolean hasPosition, wasDead;
+    private static String lastDeath = "", lastDeathXZ = "";
+    private static long lastAttack, stopwatchStart, stopwatchElapsed;
+    private static double reach;
+
+    static void attack(Minecraft client, net.minecraft.world.entity.Entity target) {
+        if (client.hitResult instanceof net.minecraft.world.phys.EntityHitResult hit && hit.getEntity() == target) {
+            reach = client.player.getEyePosition().distanceTo(hit.getLocation());
+            lastAttack = System.nanoTime();
+        }
+    }
+
+    static boolean stopwatchRunning() { return stopwatchStart != 0; }
+    static void toggleStopwatch() {
+        long now = System.nanoTime();
+        if (stopwatchStart == 0) stopwatchStart = now;
+        else {
+            stopwatchElapsed += now - stopwatchStart;
+            stopwatchStart = 0;
+        }
+    }
+
+    static void resetStopwatch() {
+        stopwatchElapsed = 0;
+        stopwatchStart = 0;
+    }
 
     static void tick(Minecraft client) {
         if (client.level != world) {
@@ -36,8 +61,16 @@ final class QuartzHud {
             joined = System.nanoTime();
             hasPosition = false;
             speed = 0;
+            wasDead = false;
+            lastAttack = 0;
         }
         if (client.player == null) return;
+        boolean dead = client.player.isDeadOrDying();
+        if (dead && !wasDead) {
+            lastDeath = coords(client, true);
+            lastDeathXZ = coords(client, false);
+        }
+        wasDead = dead;
         double x = client.player.getX(), z = client.player.getZ();
         if (hasPosition) {
             double distance = Math.hypot(x - previousX, z - previousZ);
@@ -71,6 +104,16 @@ final class QuartzHud {
             int armor = preview ? 14 : client.player.getArmorValue();
             return new Panel(Integer.toString(armor), List.of(), 92, 12);
         }
+        if (module == QuartzHudModule.INVENTORY) {
+            int columns = Math.min(9, Math.max(1, width / 20));
+            int count = Math.min(27, columns * Math.max(1, height / 20));
+            for (int i = 0; i < count; i++) {
+                ItemStack item = preview ? (i < EXAMPLE_ARMOR.size() ? EXAMPLE_ARMOR.get(i) : ItemStack.EMPTY)
+                        : client.player.getInventory().getItem(i + 9);
+                cells.add(new Cell(item.getCount() > 1 ? Integer.toString(item.getCount()) : "", item, null));
+            }
+            return new Panel("", cells, columns * 20, ((count + columns - 1) / columns) * 20);
+        }
         if (module == QuartzHudModule.ARMOR) {
             for (int i = 0; i < SLOTS.length; i++) {
                 ItemStack item = preview ? EXAMPLE_ARMOR.get(i) : client.player.getItemBySlot(SLOTS[i]);
@@ -100,31 +143,38 @@ final class QuartzHud {
     private static String value(QuartzHudModule module, Minecraft client, boolean preview) {
         return switch (module) {
             case FPS -> Integer.toString(preview ? 144 : client.getFps());
-            case CPS -> preview ? "8 | 3" : QuartzConfig.cps();
-            case COORDS -> preview ? "128  72  -45" : coords(client);
+            case CPS -> preview ? (module.settings().alternate ? "8 | 3" : "8") : QuartzConfig.cps(module.settings().alternate);
+            case COORDS -> preview ? "128  72  -45" : coords(client, module.settings().alternate);
             case DIRECTION -> preview ? "North" : client.player.getDirection().getName();
             case PING -> preview ? "42 ms" : ping(client);
-            case SPEED -> preview ? "5.6" : String.format(Locale.ROOT, "%.1f", speed);
-            case TIME -> preview ? "11:27" : java.time.LocalTime.now().format(CLOCK);
+            case SPEED -> String.format(Locale.ROOT, "%.1f %s", (preview ? 5.6 : speed) * (module.settings().alternate ? 3.6 : 1),
+                    module.settings().alternate ? "km/h" : "m/s");
+            case TIME -> (preview ? java.time.LocalTime.of(15, 27) : java.time.LocalTime.now())
+                    .format(module.settings().alternate ? CLOCK_12 : CLOCK);
             case PLAYTIME -> preview ? "01:12:02" : elapsed();
             case SATURATION -> preview ? "20.0" : String.format(Locale.ROOT, "%.1f", client.player.getFoodData().getSaturationLevel());
-            case RESOURCES -> preview ? "CPU 38% · RAM 800/2048 MB" : system();
+            case RESOURCES -> preview ? (module.settings().alternate ? "RAM 800/2048 MB" : "CPU 38% · RAM 800/2048 MB") : system(module.settings().alternate);
             case PACK -> preview ? "Example resource pack" : pack(client);
             case BLOCK -> preview ? "Grass Block" : block(client);
             case ITEM_INFO -> preview ? "Diamond Pickaxe" : held(client);
             case ITEM_COUNT -> preview ? "Arrow ×64" : countItem(client);
             case ELYTRA -> preview ? "92%" : elytra(client);
-            case TOTEM -> preview ? "3" : Integer.toString(count(client, Items.TOTEM_OF_UNDYING));
+            case TOTEM -> preview ? "3" : totems(client, module.settings().alternate);
             case ATTACK -> preview ? "89%" : Math.round(client.player.getAttackStrengthScale(0.0f) * 100) + "%";
             case KEYSTROKES -> preview ? "W  A  S  D  ␣" : keys(client);
             case MOUSESTROKES -> preview ? "LMB ●  RMB ○" : mouse(client);
+            case LIGHT -> preview ? "14" : light(client, module.settings().alternate);
+            case REACH -> preview ? "2.92" : lastAttack == 0 || System.nanoTime() - lastAttack > 3_000_000_000L ? ""
+                    : String.format(Locale.ROOT, "%.2f", reach);
+            case DEATH -> preview ? "89  71  102" : (module.settings().alternate ? lastDeath : lastDeathXZ);
+            case STOPWATCH -> preview ? "00:23:12" : duration(stopwatchElapsed + (stopwatchStart == 0 ? 0 : System.nanoTime() - stopwatchStart));
             default -> "";
         };
     }
 
-    private static String coords(Minecraft client) {
+    private static String coords(Minecraft client, boolean vertical) {
         var p = client.player.blockPosition();
-        return p.getX() + "  " + p.getY() + "  " + p.getZ();
+        return p.getX() + (vertical ? "  " + p.getY() : "") + "  " + p.getZ();
     }
 
     private static String ping(Minecraft client) {
@@ -133,20 +183,36 @@ final class QuartzHud {
         return entry == null ? "—" : entry.getLatency() + " ms";
     }
 
-    private static String elapsed() {
-        long s = Math.max(0, (System.nanoTime() - joined) / 1_000_000_000L);
+    private static String elapsed() { return duration(System.nanoTime() - joined); }
+
+    private static String duration(long nanos) {
+        long s = Math.max(0, nanos / 1_000_000_000L);
         return String.format(Locale.ROOT, "%02d:%02d:%02d", s / 3600, s / 60 % 60, s % 60);
     }
 
-    private static String system() {
+    private static String light(Minecraft client, boolean blockOnly) {
+        var pos = client.player.blockPosition();
+        return Integer.toString(blockOnly ? client.level.getBrightness(net.minecraft.world.level.LightLayer.BLOCK, pos)
+                : client.level.getMaxLocalRawBrightness(pos));
+    }
+
+    private static String totems(Minecraft client, boolean hideZero) {
+        int amount = count(client, Items.TOTEM_OF_UNDYING);
+        return hideZero && amount == 0 ? "" : Integer.toString(amount);
+    }
+
+    private static final java.time.format.DateTimeFormatter CLOCK_12 =
+            java.time.format.DateTimeFormatter.ofPattern("h:mm a", Locale.ROOT);
+
+    private static String system(boolean memoryOnly) {
         long now = System.nanoTime();
-        if (now - lastSample < 1_000_000_000L && !cpuRam.isEmpty()) return cpuRam;
+        if (now - lastSample < 1_000_000_000L && !cpuRam.isEmpty()) return memoryOnly ? cpuRam.substring(cpuRam.indexOf("RAM ")) : cpuRam;
         var ram = Runtime.getRuntime();
         double cpu = OS == null ? -1 : OS.getCpuLoad();
         cpuRam = (cpu < 0 ? "" : "CPU " + Math.round(cpu * 100) + "% · ")
                 + "RAM " + ((ram.totalMemory() - ram.freeMemory()) >> 20) + "/" + (ram.maxMemory() >> 20) + " MB";
         lastSample = now;
-        return cpuRam;
+        return memoryOnly ? cpuRam.substring(cpuRam.indexOf("RAM ")) : cpuRam;
     }
 
     private static String pack(Minecraft client) {
@@ -229,6 +295,21 @@ final class QuartzHud {
         if (panel.width() == 0) return;
         var settings = module.settings();
         var font = client.font;
+        if (module == QuartzHudModule.INVENTORY) {
+            int columns = Math.max(1, panel.width() / 20);
+            for (int i = 0; i < panel.cells().size(); i++) {
+                Cell cell = panel.cells().get(i);
+                int left = x + i % columns * 20, top = y + i / columns * 20;
+                if (settings.background) {
+                    g.fill(left + 1, top + 1, left + 19, top + 19, settings.bg);
+                    g.blitSprite(RenderPipelines.GUI_TEXTURED, SLOT, left, top, 20, 20);
+                }
+                if (!cell.item().isEmpty()) g.renderItem(cell.item(), left + 2, top + 2);
+                if (settings.showValue && !cell.value().isEmpty())
+                    g.drawString(font, cell.value(), left + 18 - font.width(cell.value()), top + 11, settings.fg, settings.shadow);
+            }
+            return;
+        }
         if (module == QuartzHudModule.ARMOR_BAR) {
             if (settings.background) g.fill(x, y, x + panel.width(), y + panel.height(), settings.bg);
             int armor = Integer.parseInt(panel.text());

@@ -12,7 +12,7 @@ import net.minecraft.resources.Identifier;
 import org.slf4j.LoggerFactory;
 
 public final class QuartzModClient implements ClientModInitializer {
-    private static KeyMapping openMenu;
+    private static KeyMapping openMenu, stopwatch;
 
     @Override
     public void onInitializeClient() {
@@ -21,10 +21,21 @@ public final class QuartzModClient implements ClientModInitializer {
         openMenu = KeyMappingHelper.registerKeyMapping(new KeyMapping(
                 "key.quartz.open_menu", InputConstants.Type.KEYBOARD, InputConstants.KEY_RSHIFT,
                 KeyMapping.Category.MISC));
+        stopwatch = KeyMappingHelper.registerKeyMapping(new KeyMapping(
+                "Quartz · Stopwatch", InputConstants.Type.KEYBOARD, InputConstants.KEY_K,
+                KeyMapping.Category.MISC));
+        net.fabricmc.fabric.api.event.player.AttackEntityCallback.EVENT.register((player, world, hand, target, hit) -> {
+            Minecraft client = Minecraft.getInstance();
+            if (client.player == player && QuartzHudModule.REACH.settings().enabled) QuartzHud.attack(client, target);
+            return net.minecraft.world.InteractionResult.PASS;
+        });
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             QuartzTitleScreen.replaceVanilla(client);
             QuartzWardrobe.tick();
             QuartzHud.tick(client);
+            while (stopwatch.consumeClick()) {
+                if (client.player != null && QuartzHudModule.STOPWATCH.settings().enabled) QuartzHud.toggleStopwatch();
+            }
             QuartzShotPreview.tick();
             while (openMenu.consumeClick()) {
                 if (client.gui.screen() == null && client.player != null) {

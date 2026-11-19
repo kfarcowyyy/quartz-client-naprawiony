@@ -140,9 +140,15 @@ final class QuartzPackDownloads {
                     if (bytes.length > limit) return null;
                     try (var input = new javax.imageio.stream.MemoryCacheImageInputStream(new java.io.ByteArrayInputStream(bytes));
                          var output = new java.io.ByteArrayOutputStream()) {
-                        var readers = javax.imageio.ImageIO.getImageReaders(input);
-                        if (!readers.hasNext()) return null;
-                        var reader = readers.next();
+                        var webp = new com.twelvemonkeys.imageio.plugins.webp.WebPImageReaderSpi();
+                        javax.imageio.ImageReader reader;
+                        if (webp.canDecodeInput(input)) reader = webp.createReaderInstance();
+                        else {
+                            var readers = javax.imageio.ImageIO.getImageReaders(input);
+                            if (!readers.hasNext()) return null;
+                            reader = readers.next();
+                        }
+                        input.seek(0);
                         try {
                             reader.setInput(input, true, true);
                             int width = reader.getWidth(0), height = reader.getHeight(0);

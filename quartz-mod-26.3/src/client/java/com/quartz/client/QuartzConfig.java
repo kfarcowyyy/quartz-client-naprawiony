@@ -30,7 +30,7 @@ public final class QuartzConfig {
     }
 
     static final class Hud {
-        boolean enabled, background = true, showValue = true, shadow = true, brackets;
+        boolean enabled, background = true, showValue = true, shadow = true, brackets, alternate;
         int bg = 0xB0101732, fg = 0xFFF3F5FF;
         int x, y;
         Integer oldX, oldY;
@@ -40,6 +40,7 @@ public final class QuartzConfig {
 
         Hud(QuartzHudModule module) {
             enabled = module.initiallyEnabled;
+            alternate = module == QuartzHudModule.CPS || module == QuartzHudModule.COORDS || module == QuartzHudModule.DEATH;
             x = module.x;
             y = module.y;
             text = module.template;
@@ -104,10 +105,12 @@ public final class QuartzConfig {
         while (!clicks.isEmpty() && now - clicks.peekFirst() >= 1_000_000_000L) clicks.removeFirst();
     }
 
-    public static String cps() {
+    public static String cps() { return cps(true); }
+
+    public static String cps(boolean both) {
         long now = System.nanoTime();
         trim(LEFT, now);
         trim(RIGHT, now);
-        return LEFT.size() + " | " + RIGHT.size();
+        return both ? LEFT.size() + " | " + RIGHT.size() : Integer.toString(LEFT.size());
     }
 }

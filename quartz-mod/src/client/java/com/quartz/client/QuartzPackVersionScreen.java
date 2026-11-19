@@ -39,7 +39,7 @@ final class QuartzPackVersionScreen extends QuartzSafeScreen {
         });
         int half = (span - 6) / 2;
         button(QuartzText.of("Any version", "Każda wersja"), left, 60, half, active.isEmpty(), () -> select.accept(""));
-        button(QuartzText.of("Current", "Bieżąca").append(" · " + QuartzPackDownloads.VERSION),
+        button(QuartzText.of("Current · " + QuartzPackDownloads.VERSION, "Bieżąca · " + QuartzPackDownloads.VERSION),
                 left + half + 6, 60, half, active.equals(QuartzPackDownloads.VERSION), () -> select.accept(QuartzPackDownloads.VERSION));
         var found = releases.stream().filter(v -> v.contains(filter.strip())).toList();
         limit = Math.max(1, (height - 128) / 22) * 3;

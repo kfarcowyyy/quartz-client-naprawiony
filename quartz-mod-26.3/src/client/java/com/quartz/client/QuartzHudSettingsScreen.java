@@ -71,7 +71,11 @@ final class QuartzHudSettingsScreen extends QuartzSafeScreen {
             field(left, y, controls, QuartzText.of("Template", "Wzór tekstu"), setting.text == null ? module.template : setting.text,
                     72, value -> setting.text = value);
         } else if (module != QuartzHudModule.ARMOR_BAR) {
-            Component value = module == QuartzHudModule.ARMOR ? QuartzText.of("Durability", "Trwałość") : QuartzText.of("Timer", "Czas");
+            Component value = switch (module) {
+                case ARMOR -> QuartzText.of("Durability", "Trwałość");
+                case INVENTORY -> QuartzText.of("Stack count", "Liczba sztuk");
+                default -> QuartzText.of("Timer", "Czas");
+            };
             option(Component.empty().append(value).append(setting.showValue ? " ✓" : " ×"), left, y, controls, setting.showValue, () -> {
                 setting.showValue = !setting.showValue;
                 rebuildWidgets();
@@ -80,6 +84,23 @@ final class QuartzHudSettingsScreen extends QuartzSafeScreen {
         if (module == QuartzHudModule.ITEM_COUNT) {
             field(left, top + 185 - scroll, controls, QuartzText.of("Item ID", "ID przedmiotu"),
                     setting.target == null ? "" : setting.target, 80, value -> setting.target = value.strip());
+        }
+        Component alternate = module.alternateLabel(setting.alternate);
+        int advanced = top + 185 - scroll;
+        if (alternate != null) option(alternate, left, advanced, controls, false, () -> {
+            setting.alternate = !setting.alternate;
+            rebuildWidgets();
+        });
+        if (module == QuartzHudModule.STOPWATCH) {
+            option(QuartzHud.stopwatchRunning() ? QuartzText.of("Pause", "Pauza") : QuartzText.of("Start", "Start"),
+                    left, advanced, half, true, () -> {
+                QuartzHud.toggleStopwatch();
+                rebuildWidgets();
+            });
+            option(QuartzText.of("Clear time", "Wyzeruj czas"), left + half + 6, advanced, half, false, () -> {
+                QuartzHud.resetStopwatch();
+                rebuildWidgets();
+            });
         }
         add(QuartzText.of("Move HUD", "Przesuń HUD"), left, height - 27, Math.min(110, controls), false,
                 () -> minecraft.gui.setScreen(new QuartzHudEditorScreen(this, module)));
@@ -126,8 +147,8 @@ final class QuartzHudSettingsScreen extends QuartzSafeScreen {
         QuartzTheme.card(g, left, top, span, 26, QuartzTheme.WHITE, QuartzTheme.OUTLINE);
         g.text(font, font.plainSubstrByWidth(title.getString(), Math.max(0, span / 2 - 22)), left + 28, top + 9, QuartzTheme.ACCENT, false);
         int x = left + controls + 12, y = top + 31, h = Math.max(42, contentBottom - y);
-        QuartzTheme.card(g, x, y, preview, h, 0xFFEADAF4, QuartzTheme.OUTLINE);
-        g.text(font, QuartzText.of("Live preview", "Podgląd"), x + 7, y + 8, QuartzTheme.ACCENT, false);
+        QuartzTheme.card(g, x, y, preview, h, 0xFF594964, QuartzTheme.OUTLINE);
+        g.text(font, QuartzText.of("Live preview", "Podgląd"), x + 7, y + 8, 0xFFEEDCFB, false);
         var panel = QuartzHud.panel(module, minecraft, true, preview - 8, Math.max(27, h - 23));
         g.enableScissor(x + 2, y + 22, x + preview - 2, y + h - 2);
         try {
