@@ -10,11 +10,8 @@ import net.minecraft.client.gui.screens.multiplayer.SafetyScreen;
 import net.minecraft.client.gui.screens.options.OptionsScreen;
 import net.minecraft.client.gui.screens.worldselection.SelectWorldScreen;
 import net.minecraft.network.chat.Component;
-import net.minecraft.client.renderer.RenderPipelines;
-import net.minecraft.resources.Identifier;
 
 public final class QuartzTitleScreen extends Screen {
-    private static final Identifier CRYSTAL = Identifier.fromNamespaceAndPath("quartz", "textures/wardrobe/quartz-crystal.png");
     private int left, top, panelWidth;
 
     private QuartzTitleScreen() { super(Component.literal("Quartz Client")); }
@@ -78,9 +75,9 @@ public final class QuartzTitleScreen extends Screen {
         QuartzTheme.card(g, width - badgeWidth - 8, 8, badgeWidth, 19, QuartzTheme.WHITE, QuartzTheme.OUTLINE);
         g.text(font, visibleAccount, width - badgeWidth + 1, 14, QuartzTheme.INK, false);
         String brand = "Quartz Client";
-        int brandX = (width - 26 - font.width(brand)) / 2, brandY = top - 34;
-        g.blit(RenderPipelines.GUI_TEXTURED, CRYSTAL, brandX, brandY, 0, 0, 16, 24, 16, 24);
-        g.text(font, brand, brandX + 25, brandY + 8, QuartzTheme.ACCENT, false);
+        int brandX = (width - 25 - font.width(brand)) / 2, brandY = top - 36;
+        QuartzTheme.crystal(g, brandX, brandY, 18, 27);
+        g.text(font, brand, brandX + 25, brandY + 10, QuartzTheme.ACCENT, false);
         QuartzTheme.card(g, left - 10, top - 7, panelWidth + 20, 89, 0xFFFAF6FE, QuartzTheme.OUTLINE);
         super.extractRenderState(g, mouseX, mouseY, delta);
     }

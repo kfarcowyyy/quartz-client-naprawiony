@@ -4,6 +4,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.network.chat.Component;
+import org.slf4j.LoggerFactory;
 
 final class QuartzButton extends Button {
     private final boolean accent;
@@ -11,8 +12,27 @@ final class QuartzButton extends Button {
     private long lastFrame = System.nanoTime();
 
     QuartzButton(Component label, int x, int y, int w, int h, boolean accent, Runnable action) {
-        super(x, y, w, h, label, button -> action.run(), DEFAULT_NARRATION);
+        super(x, y, w, h, label, button -> invoke(button, action), DEFAULT_NARRATION);
         this.accent = accent;
+    }
+
+    private static void invoke(Button button, Runnable action) {
+        Minecraft client = Minecraft.getInstance();
+        var previous = client.screen;
+        try {
+            action.run();
+        } catch (RuntimeException error) {
+            LoggerFactory.getLogger("Quartz Buttons").error("Quartz menu action failed: {}", button.getMessage().getString(), error);
+            button.setMessage(QuartzText.of("See game log", "Sprawdź dziennik gry"));
+            if (client.screen != previous) {
+                try {
+                    client.setScreen(previous);
+                } catch (RuntimeException restore) {
+                    LoggerFactory.getLogger("Quartz Buttons").error("Could not restore the previous screen", restore);
+                    client.setScreen(null);
+                }
+            }
+        }
     }
 
     @Override

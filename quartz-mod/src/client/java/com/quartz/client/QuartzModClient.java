@@ -41,13 +41,15 @@ public final class QuartzModClient implements ClientModInitializer {
         HudElementRegistry.addLast(Identifier.fromNamespaceAndPath("quartz", "main_hud"), (graphics, tickCounter) -> {
             Minecraft client = Minecraft.getInstance();
             if (!client.options.hideGui) QuartzShotPreview.popup(graphics);
-            if (!QuartzConfig.data.hudEnabled || client.options.hideGui || client.player == null) return;
-            String text = QuartzConfig.data.hudText
+            if (!QuartzConfig.data.hudEnabled || client.options.hideGui || client.player == null
+                    || client.screen instanceof QuartzHudEditorScreen) return;
+            String text = QuartzConfig.hudTemplate()
                     .replace("{fps}", Integer.toString(client.getFps()))
                     .replace("{cps}", QuartzConfig.cps());
-            int x = Math.max(0, Math.min(QuartzConfig.data.hudX, graphics.guiWidth() - 8));
-            int y = Math.max(0, Math.min(QuartzConfig.data.hudY, graphics.guiHeight() - 16));
+            text = client.font.plainSubstrByWidth(text, Math.max(0, graphics.guiWidth() - 12));
             int width = client.font.width(text) + 12;
+            int x = Math.max(0, Math.min(QuartzConfig.data.hudX, graphics.guiWidth() - width));
+            int y = Math.max(0, Math.min(QuartzConfig.data.hudY, graphics.guiHeight() - 18));
             graphics.fill(x, y, x + width, y + 18, QuartzConfig.data.background);
             graphics.drawString(client.font, text, x + 6, y + 5, QuartzConfig.data.foreground, false);
         });

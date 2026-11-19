@@ -6,7 +6,7 @@ import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
 
-public final class QuartzSettingsScreen extends Screen {
+public final class QuartzSettingsScreen extends QuartzSafeScreen {
     private final Screen parent;
     private EditBox template;
     private EditBox background;
@@ -23,7 +23,7 @@ public final class QuartzSettingsScreen extends Screen {
         template = new EditBox(font, left, height / 2 - 50, 300, 24,
                 QuartzText.of("HUD text template", "Tekst HUD"));
         template.setMaxLength(72);
-        template.setValue(QuartzConfig.data.hudText);
+        template.setValue(QuartzConfig.hudTemplate());
         addRenderableWidget(template);
 
         background = new EditBox(font, left, height / 2 - 12, 145, 24,
@@ -54,7 +54,7 @@ public final class QuartzSettingsScreen extends Screen {
 
     private void saveAndClose() {
         String value = template.getValue().trim();
-        QuartzConfig.data.hudText = value.isEmpty() ? "FPS {fps} | CPS {cps}" : value;
+        QuartzConfig.data.hudText = value.isEmpty() ? QuartzConfig.DEFAULT_HUD_TEXT : value;
         try { QuartzConfig.data.background = (int) Long.parseLong(background.getValue(), 16); } catch (Exception ignored) { }
         try { QuartzConfig.data.foreground = (int) Long.parseLong(foreground.getValue(), 16); } catch (Exception ignored) { }
         QuartzConfig.save();
@@ -62,14 +62,17 @@ public final class QuartzSettingsScreen extends Screen {
     }
 
     @Override
-    public void render(GuiGraphics graphics, int mouseX, int mouseY, float delta) {
-        renderBackground(graphics, mouseX, mouseY, delta);
-        graphics.drawCenteredString(font, title, width / 2, height / 2 - 90, 0xFFFFFFFF);
+    protected void drawQuartz(GuiGraphics graphics, int mouseX, int mouseY, float delta) {
+        QuartzTheme.background(graphics, width, height);
+        int span = Math.min(324, width - 8);
+        QuartzTheme.card(graphics, (width - span) / 2, Math.max(4, height / 2 - 101), span,
+                Math.min(190, height - 8), QuartzTheme.WHITE, QuartzTheme.OUTLINE);
+        graphics.drawCenteredString(font, title, width / 2, height / 2 - 90, QuartzTheme.INK);
         graphics.drawString(font,
                 QuartzText.of("Placeholders: {fps} and {cps}; color format: AARRGGBB",
                         "Zmienne: {fps} i {cps}; kolor w formacie AARRGGBB"),
-                width / 2 - 150, height / 2 - 72, 0xFFB8C7F2);
-        super.render(graphics, mouseX, mouseY, delta);
+                width / 2 - 150, height / 2 - 72, QuartzTheme.MUTED);
+        drawWidgets(graphics, mouseX, mouseY, delta);
     }
 
     @Override

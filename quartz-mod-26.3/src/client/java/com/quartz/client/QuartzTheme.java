@@ -1,8 +1,16 @@
 package com.quartz.client;
 
 import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.renderer.RenderPipelines;
+import net.minecraft.resources.Identifier;
 
 final class QuartzTheme {
+    private static final Identifier CRYSTAL = Identifier.fromNamespaceAndPath("quartz", "textures/gui/app-crystal.png");
+
+    static void crystal(GuiGraphicsExtractor graphics, int x, int y, int width, int height) {
+        graphics.blit(RenderPipelines.GUI_TEXTURED, CRYSTAL, x, y, 0, 0, width, height, 48, 72, 48, 72);
+    }
+
     static final int INK = 0xFF382648;
     static final int MUTED = 0xFF705D80;
     static final int ACCENT = 0xFF8145B5;

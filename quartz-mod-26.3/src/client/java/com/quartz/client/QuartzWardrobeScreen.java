@@ -9,7 +9,7 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.util.List;
 
-public final class QuartzWardrobeScreen extends Screen {
+public final class QuartzWardrobeScreen extends QuartzSafeScreen {
     private enum Tab { SKINS, CAPES, COSMETICS }
     private final Screen parent;
     private Tab tab = Tab.SKINS;
@@ -104,10 +104,9 @@ public final class QuartzWardrobeScreen extends Screen {
         return addRenderableWidget(new QuartzButton(label, x, y, size, h, accent, action));
     }
 
-    @Override public void extractBackground(GuiGraphicsExtractor g, int x, int y, float delta) {}
 
     @Override
-    public void extractRenderState(GuiGraphicsExtractor g, int mouseX, int mouseY, float delta) {
+    protected void drawQuartz(GuiGraphicsExtractor g, int mouseX, int mouseY, float delta) {
         QuartzTheme.background(g, width, height);
         g.text(font, title, left, top + 3, QuartzTheme.ACCENT, false);
         QuartzTheme.card(g, left, 82, span, Math.max(30, height - 120), QuartzTheme.WHITE, QuartzTheme.OUTLINE);
@@ -139,7 +138,7 @@ public final class QuartzWardrobeScreen extends Screen {
             String text = font.plainSubstrByWidth(notice.getString(), Math.max(0, left + span - 69 - x));
             g.text(font, text, x, height - 23, QuartzTheme.ACCENT, false);
         }
-        super.extractRenderState(g, mouseX, mouseY, delta);
+        drawWidgets(g, mouseX, mouseY, delta);
     }
 
     @Override public void onClose() { Minecraft.getInstance().gui.setScreen(parent); }

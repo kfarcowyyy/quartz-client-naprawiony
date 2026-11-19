@@ -12,6 +12,7 @@ public final class QuartzConfig {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final ArrayDeque<Long> LEFT = new ArrayDeque<>();
     private static final ArrayDeque<Long> RIGHT = new ArrayDeque<>();
+    static final String DEFAULT_HUD_TEXT = "FPS {fps}  |  CPS {cps}";
     public static Data data = new Data();
 
     private QuartzConfig() {}
@@ -24,7 +25,7 @@ public final class QuartzConfig {
         public int hudY = 12;
         public int background = 0xB0101732;
         public int foreground = 0xFFF3F5FF;
-        public String hudText = "FPS {fps}  |  CPS {cps}";
+        public String hudText = DEFAULT_HUD_TEXT;
     }
 
     private static Path file() {
@@ -40,7 +41,14 @@ public final class QuartzConfig {
         } catch (Exception ignored) {
             data = new Data();
         }
+        data.hudText = hudTemplate();
         save();
+    }
+
+    static String hudTemplate() {
+        String value = data.hudText;
+        if (value == null || value.isBlank()) return DEFAULT_HUD_TEXT;
+        return value.length() <= 72 ? value : value.substring(0, 72);
     }
 
     public static void save() {

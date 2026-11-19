@@ -15,7 +15,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.zip.ZipFile;
 
-public class QuartzModListScreen extends Screen {
+public class QuartzModListScreen extends QuartzSafeScreen {
     private record Mod(Path file, String name, boolean enabled, boolean managed) {}
     private final Screen parent;
     private final List<Mod> mods = new ArrayList<>();
@@ -128,14 +128,14 @@ public class QuartzModListScreen extends Screen {
 
     private void open(Screen screen) { Minecraft.getInstance().setScreen(screen); }
     @Override public void onClose() { open(parent); }
-    @Override public void renderBackground(GuiGraphics g, int x, int y, float delta) {}
 
     @Override
-    public void render(GuiGraphics g, int mouseX, int mouseY, float delta) {
+    protected void drawQuartz(GuiGraphics g, int mouseX, int mouseY, float delta) {
         QuartzTheme.background(g, width, height);
         QuartzTheme.card(g, left, 9, width - 2 * left, 25, QuartzTheme.WHITE, QuartzTheme.OUTLINE);
         QuartzTheme.card(g, left, 40, sidebar, height - 50, 0xFFFCF4FE, QuartzTheme.OUTLINE);
-        g.drawString(font, QuartzText.of("QUARTZ   /   MODS", "QUARTZ   /   MODY"), left + 9, 18, QuartzTheme.ACCENT, false);
+        QuartzTheme.crystal(g, left + 6, 11, 14, 21);
+        g.drawString(font, "Quartz Client", left + 26, 18, QuartzTheme.ACCENT, false);
         int contentLeft = left * 2 + sidebar;
         for (int i = 0; i < limit && page * limit + i < mods.size(); i++) {
             Mod mod = mods.get(page * limit + i);
@@ -148,6 +148,6 @@ public class QuartzModListScreen extends Screen {
         String footer = status == null ? mods.isEmpty() ? QuartzText.of("No matching mods.", "Brak modów w tym widoku.").getString() : "" : status.getString();
         g.drawString(font, (page + 1) + "/" + pages, contentLeft + 28, height - 23, QuartzTheme.MUTED, false);
         g.drawString(font, font.plainSubstrByWidth(footer, Math.max(0, bodyWidth - 88)), contentLeft + 86, height - 23, QuartzTheme.MUTED, false);
-        super.render(g, mouseX, mouseY, delta);
+        drawWidgets(g, mouseX, mouseY, delta);
     }
 }

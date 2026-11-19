@@ -9,7 +9,7 @@ import net.minecraft.network.chat.Component;
 import java.nio.file.Path;
 import java.util.List;
 
-public final class QuartzScreenshotScreen extends Screen {
+public final class QuartzScreenshotScreen extends QuartzSafeScreen {
     private final Screen parent;
     private final QuartzShotPreview image = new QuartzShotPreview("screenshot_gallery");
     private List<Path> files = List.of();
@@ -46,20 +46,20 @@ public final class QuartzScreenshotScreen extends Screen {
     }
 
     @Override
-    public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float delta) {
-        extractBackground(graphics, mouseX, mouseY, delta);
-        QuartzGraphics.center(graphics, font, title, width / 2, 8, 0xFFF3EDFF);
+    protected void drawQuartz(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float delta) {
+        QuartzTheme.background(graphics, width, height);
+        QuartzGraphics.center(graphics, font, title, width / 2, 8, QuartzTheme.INK);
         if (files.isEmpty()) {
             QuartzGraphics.center(graphics, font, QuartzText.of("Press F2 to take a screenshot", "Naciśnij F2, aby zrobić zrzut"),
-                    width / 2, height / 2, 0xFFC8B7E5);
+                    width / 2, height / 2, QuartzTheme.MUTED);
         } else {
             String name = (selection + 1) + " / " + files.size() + "   " + files.get(selection).getFileName();
-            QuartzGraphics.center(graphics, font, name, width / 2, 22, 0xFFC8B7E5);
+            QuartzGraphics.center(graphics, font, name, width / 2, 22, QuartzTheme.MUTED);
             if (loaded) image.draw(graphics, 16, 36, width - 32, height - 68);
             else QuartzGraphics.center(graphics, font, QuartzText.of("Image unavailable", "Nie można otworzyć pliku"),
-                    width / 2, height / 2, 0xFFFFA5AF);
+                    width / 2, height / 2, 0xFFAA395C);
         }
-        super.extractRenderState(graphics, mouseX, mouseY, delta);
+        drawWidgets(graphics, mouseX, mouseY, delta);
     }
 
     @Override

@@ -16,7 +16,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.zip.ZipFile;
 
-public final class QuartzPacksScreen extends Screen {
+public final class QuartzPacksScreen extends QuartzSafeScreen {
     private final Screen parent;
     private static final org.slf4j.Logger LOG = LoggerFactory.getLogger("Quartz Packs");
     private QuartzPackDownloads.Kind kind;
@@ -166,10 +166,9 @@ public final class QuartzPacksScreen extends Screen {
         return addRenderableWidget(new QuartzButton(label, x, y, w, 19, accent, action));
     }
 
-    @Override public void renderBackground(GuiGraphics g, int x, int y, float delta) {}
 
     @Override
-    public void render(GuiGraphics g, int x, int y, float delta) {
+    protected void drawQuartz(GuiGraphics g, int x, int y, float delta) {
         QuartzTheme.background(g, width, height);
         g.drawString(font, title, left, 12, QuartzTheme.ACCENT, false);
         for (int i = 0; i < Math.min(results.items().size(), limit); i++) {
@@ -183,7 +182,7 @@ public final class QuartzPacksScreen extends Screen {
                 : QuartzText.of("Search Modrinth or drop a ZIP here.", "Wyszukaj w Modrinth lub upuść tu ZIP.").getString()
                 : notice.getString();
         g.drawString(font, font.plainSubstrByWidth(status, span), left, height - 43, QuartzTheme.MUTED, false);
-        super.render(g, x, y, delta);
+        drawWidgets(g, x, y, delta);
     }
 
     @Override public void onClose() { Minecraft.getInstance().setScreen(parent); }

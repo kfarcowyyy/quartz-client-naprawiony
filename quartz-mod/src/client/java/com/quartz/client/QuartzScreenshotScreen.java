@@ -9,7 +9,7 @@ import net.minecraft.network.chat.Component;
 import java.nio.file.Path;
 import java.util.List;
 
-public final class QuartzScreenshotScreen extends Screen {
+public final class QuartzScreenshotScreen extends QuartzSafeScreen {
     private final Screen parent;
     private final QuartzShotPreview image = new QuartzShotPreview("screenshot_gallery");
     private List<Path> files = List.of();
@@ -46,20 +46,20 @@ public final class QuartzScreenshotScreen extends Screen {
     }
 
     @Override
-    public void render(GuiGraphics graphics, int mouseX, int mouseY, float delta) {
-        renderBackground(graphics, mouseX, mouseY, delta);
-        graphics.drawCenteredString(font, title, width / 2, 8, 0xFFF3EDFF);
+    protected void drawQuartz(GuiGraphics graphics, int mouseX, int mouseY, float delta) {
+        QuartzTheme.background(graphics, width, height);
+        graphics.drawCenteredString(font, title, width / 2, 8, QuartzTheme.INK);
         if (files.isEmpty()) {
             graphics.drawCenteredString(font, QuartzText.of("Press F2 to take a screenshot", "Naciśnij F2, aby zrobić zrzut"),
-                    width / 2, height / 2, 0xFFC8B7E5);
+                    width / 2, height / 2, QuartzTheme.MUTED);
         } else {
             String name = (selection + 1) + " / " + files.size() + "   " + files.get(selection).getFileName();
-            graphics.drawCenteredString(font, name, width / 2, 22, 0xFFC8B7E5);
+            graphics.drawCenteredString(font, name, width / 2, 22, QuartzTheme.MUTED);
             if (loaded) image.draw(graphics, 16, 36, width - 32, height - 68);
             else graphics.drawCenteredString(font, QuartzText.of("Image unavailable", "Nie można otworzyć pliku"),
-                    width / 2, height / 2, 0xFFFFA5AF);
+                    width / 2, height / 2, 0xFFAA395C);
         }
-        super.render(graphics, mouseX, mouseY, delta);
+        drawWidgets(graphics, mouseX, mouseY, delta);
     }
 
     @Override
