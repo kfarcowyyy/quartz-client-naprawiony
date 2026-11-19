@@ -1,7 +1,6 @@
 package com.quartz.client.mixin;
 
 import com.quartz.client.QuartzWardrobe;
-import com.quartz.client.QuartzMultiplayerWardrobe;
 import net.minecraft.client.player.AbstractClientPlayer;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.world.entity.player.PlayerSkin;
@@ -16,8 +15,7 @@ public abstract class QuartzPlayerSkinMixin {
     private void quartzApplyWardrobe(CallbackInfoReturnable<PlayerSkin> result) {
         var player = (AbstractClientPlayer) (Object) this;
         PlayerSkin vanilla = result.getReturnValue();
-        PlayerSkin updated = player instanceof LocalPlayer ? QuartzWardrobe.apply(vanilla)
-                : QuartzMultiplayerWardrobe.apply(player.getUUID(), vanilla);
+        PlayerSkin updated = player instanceof LocalPlayer ? QuartzWardrobe.apply(vanilla) : vanilla;
         if (updated != vanilla) result.setReturnValue(updated);
     }
 }

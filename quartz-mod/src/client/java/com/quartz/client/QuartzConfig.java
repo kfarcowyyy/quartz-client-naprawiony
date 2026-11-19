@@ -19,6 +19,7 @@ public final class QuartzConfig {
     public static final class Data {
         public String language = "en";
         public boolean hudEnabled = true;
+        public boolean classicMenu = false;
         public int hudX = 12;
         public int hudY = 12;
         public int background = 0xB0101732;

@@ -8,6 +8,7 @@ import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.resources.Identifier;
+import org.slf4j.LoggerFactory;
 import org.lwjgl.glfw.GLFW;
 
 public final class QuartzModClient implements ClientModInitializer {
@@ -16,8 +17,6 @@ public final class QuartzModClient implements ClientModInitializer {
     @Override
     public void onInitializeClient() {
         QuartzConfig.load();
-        QuartzWardrobe.refresh();
-        QuartzMultiplayerWardrobe.initialize();
         QuartzShotPreview.start();
         openMenu = KeyBindingHelper.registerKeyBinding(new KeyMapping(
                 "key.quartz.open_menu", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_RIGHT_SHIFT,
@@ -25,10 +24,18 @@ public final class QuartzModClient implements ClientModInitializer {
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             QuartzTitleScreen.replaceVanilla(client);
             QuartzWardrobe.tick();
-            if (client.getConnection() != null) QuartzMultiplayerWardrobe.tick();
             QuartzShotPreview.tick();
             while (openMenu.consumeClick()) {
-                if (client.screen == null && client.player != null) client.setScreen(new QuartzMenuScreen(null));
+                if (client.screen == null && client.player != null) {
+                    try {
+                        client.setScreen(new QuartzMenuScreen(null));
+                    } catch (RuntimeException error) {
+                        LoggerFactory.getLogger("Quartz Client").error("Could not open the Quartz mods screen", error);
+                        client.setScreen(null);
+                        client.player.displayClientMessage(QuartzText.of("Could not open Quartz menu. See the game log.",
+                                "Nie udało się otworzyć menu Quartz. Sprawdź dziennik gry."), false);
+                    }
+                }
             }
         });
         HudElementRegistry.addLast(Identifier.fromNamespaceAndPath("quartz", "main_hud"), (graphics, tickCounter) -> {

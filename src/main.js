@@ -60,12 +60,30 @@ handle('versions:list', () => versions.list());
 function publicSettings({ account, ...settings }) { return settings; }
 handle('settings:get', () => publicSettings(store.get()));
 handle('settings:set', (patch) => {
-  const allowed = ['ram', 'curseforgeKey', 'optimize', 'voicechat', 'javaPath', 'language'];
+  const allowed = ['ram', 'curseforgeKey', 'voicechat', 'javaPath', 'language'];
   return publicSettings(store.set(Object.fromEntries(allowed.filter((key) => Object.hasOwn(patch, key))
     .map((key) => [key, patch[key]]))));
 });
-handle('cosmetics:get', () => ({ catalog: cosmetics.catalog, equipped: cosmetics.read(auth.status()) }));
-handle('cosmetics:set', (patch) => cosmetics.save(auth.status(), patch));
+handle('cosmetics:get', () => {
+  const account = auth.status();
+  return { skins: cosmetics.listSkins(account), equipped: cosmetics.read(account) };
+});
+handle('cosmetics:add-skin', async (slim) => {
+  const account = auth.status();
+  const selection = await dialog.showOpenDialog(win, {
+    properties: ['openFile'],
+    filters: [{ name: 'Minecraft skin PNG', extensions: ['png'] }],
+  });
+  if (!selection.canceled && auth.status()?.uuid === account?.uuid) {
+    cosmetics.addSkin(account, selection.filePaths[0], slim === true);
+  }
+});
+handle('cosmetics:equip-skin', (id) => cosmetics.selectSkin(auth.status(), id));
+handle('cosmetics:remove-skin', (id) => cosmetics.removeSkin(auth.status(), id));
+handle('cosmetics:capes', async () => {
+  const account = auth.status();
+  return account?.type === 'microsoft' ? cosmetics.loadCapes(account, await auth.authorization()) : [];
+});
 
 handle('instances:list', () => instances.list());
 handle('instances:delete', (id) => instances.remove(id));
@@ -88,7 +106,7 @@ handle('instances:create', async (o) => {
   const inst = instances.create(o);
   quartzMod.install(inst);
   send('status', 'Instaluję dodatki...');
-  await extras.applyDefaults(inst, { optimize: !!o.optimize, voicechat: !!o.voicechat }, (m) =>
+  await extras.applyDefaults(inst, { voicechat: !!o.voicechat }, (m) =>
     send('log', m)
   );
   send('status', '');
@@ -143,7 +161,11 @@ handle('game:play', async (id) => {
   if (!hasQuartz && inst.loader !== 'vanilla') {
     send('log', `[Quartz] Mod build unavailable for ${inst.loader} / Minecraft ${inst.mcVersion}.`);
   }
-  const wardrobeFile = cosmetics.profileFile(auth.status());
+  const wardrobeAccount = auth.status();
+  const wardrobeFile = cosmetics.profileFile(wardrobeAccount);
+  if (hasQuartz && wardrobeAccount?.type === 'microsoft') {
+    cosmetics.loadCapes(wardrobeAccount, authorization).catch(() => {});
+  }
 
   if (settings.voicechat) {
     send('status', 'Sprawdzam Simple Voice Chat...');

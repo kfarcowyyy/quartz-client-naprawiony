@@ -1,79 +1,137 @@
 package com.quartz.client;
 
+import com.google.gson.JsonParser;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
-import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
+import java.util.zip.ZipFile;
 
-public final class QuartzModListScreen extends Screen {
+public class QuartzModListScreen extends Screen {
+    private record Mod(Path file, String name, boolean enabled, boolean managed) {}
     private final Screen parent;
-    private final List<Path> mods = new ArrayList<>();
+    private final List<Mod> mods = new ArrayList<>();
+    private int page, pages, columns, rows, left, bodyWidth, sidebar, cardWidth, limit;
+    private Component status;
 
     public QuartzModListScreen(Screen parent) {
-        super(QuartzText.of("Installed mods", "Zainstalowane mody"));
+        super(QuartzText.of("Mods", "Mody"));
         this.parent = parent;
     }
 
     @Override
     protected void init() {
+        scan();
+        left = 12;
+        sidebar = width < 390 ? 78 : 104;
+        bodyWidth = width - 3 * left - sidebar;
+        columns = bodyWidth >= 350 ? 3 : bodyWidth >= 200 ? 2 : 1;
+        cardWidth = (bodyWidth - 8 * (columns - 1)) / columns;
+        rows = Math.max(1, (height - 80) / 60);
+        limit = rows * columns;
+        pages = Math.max(1, (mods.size() + limit - 1) / limit);
+        page = Math.min(page, pages - 1);
+        nav(QuartzText.of("Mods", "Mody"), 45, true, () -> {});
+        nav(QuartzText.of("HUD layout", "Układ HUD"), 69, false, () -> open(new QuartzHudEditorScreen(this)));
+        nav(QuartzText.of("HUD settings", "Ustawienia HUD"), 93, false, () -> open(new QuartzSettingsScreen(this)));
+        nav(QuartzText.of("Wardrobe", "Garderoba"), 117, false, () -> open(new QuartzWardrobeScreen(this)));
+        nav(QuartzText.of("Packs & shaders", "Paczki i shadery"), 141, false, () -> open(new QuartzPacksScreen(this)));
+        nav(QuartzText.of("Screenshots", "Zrzuty ekranu"), 165, false, () -> open(new QuartzScreenshotScreen(this)));
+        add(Component.literal("×"), width - left - 24, 12, 24, 20, false, this::onClose);
+        int contentLeft = left * 2 + sidebar;
+        add(Component.literal("‹"), contentLeft, height - 28, 23, 18, false, () -> move(-1)).active = page > 0;
+        add(Component.literal("›"), contentLeft + 58, height - 28, 23, 18, false, () -> move(1)).active = page + 1 < pages;
+        for (int i = 0; i < limit && page * limit + i < mods.size(); i++) {
+            Mod item = mods.get(page * limit + i);
+            int x = contentLeft + i % columns * (cardWidth + 8), y = 44 + i / columns * 60;
+            Component label = item.managed() ? QuartzText.of("Built in", "Wbudowany")
+                    : item.enabled() ? QuartzText.of("Disable", "Wyłącz") : QuartzText.of("Enable", "Włącz");
+            add(label, x + 7, y + 31, cardWidth - 14, 17, false, () -> toggle(item)).active = !item.managed();
+        }
+    }
+
+    private void scan() {
         mods.clear();
         Path folder = Minecraft.getInstance().gameDirectory.toPath().resolve("mods");
-        try {
-            Files.createDirectories(folder);
-            try (var stream = Files.list(folder)) {
-                stream.filter(p -> {
-                    String n = p.getFileName().toString().toLowerCase();
-                    return n.endsWith(".jar") || n.endsWith(".jar.disabled");
-                }).sorted().forEach(mods::add);
+        if (!Files.isDirectory(folder)) return;
+        try (var paths = Files.list(folder)) {
+            paths.filter(Files::isRegularFile).sorted().forEach(file -> {
+                String name = file.getFileName().toString();
+                String lower = name.toLowerCase(Locale.ROOT);
+                if (!lower.endsWith(".jar") && !lower.endsWith(".jar.disabled")) return;
+                boolean managed = lower.startsWith("quartz-client-managed") || lower.startsWith("quartz-fabric-api-managed");
+                mods.add(new Mod(file, modName(file, name), lower.endsWith(".jar"), managed));
+            });
+        } catch (Exception error) {
+            status = QuartzText.of("Could not open the mods folder.", "Nie udało się odczytać folderu mods.");
+        }
+    }
+
+    private static String modName(Path file, String name) {
+        try (var zip = new ZipFile(file.toFile())) {
+            var metadata = zip.getEntry("fabric.mod.json");
+            if (metadata != null && metadata.getSize() >= 0 && metadata.getSize() <= 128 * 1024) {
+                try (var json = new InputStreamReader(zip.getInputStream(metadata), StandardCharsets.UTF_8)) {
+                    var label = JsonParser.parseReader(json).getAsJsonObject().get("name");
+                    if (label != null && label.isJsonPrimitive()) return label.getAsString();
+                }
             }
         } catch (Exception ignored) { }
-
-        int maxRows = Math.max(1, (height - 112) / 27);
-        for (int i = 0; i < Math.min(mods.size(), maxRows); i++) {
-            Path file = mods.get(i);
-            String name = file.getFileName().toString();
-            boolean enabled = name.endsWith(".jar");
-            String cleanName = name.replaceFirst("\\.jar(?:\\.disabled)?$", "");
-            String label = (enabled ? "[ON] " : "[OFF] ") + cleanName;
-            addRenderableWidget(Button.builder(Component.literal(label), button -> toggle(file, name, enabled))
-                    .bounds(width / 2 - 170, 42 + i * 27, 340, 23).build());
-        }
-        addRenderableWidget(Button.builder(QuartzText.of("Open mods folder", "Otworz folder modow"), b ->
-                QuartzFiles.openFolder("mods"))
-                .bounds(width / 2 - 130, height - 62, 125, 24).build());
-        addRenderableWidget(Button.builder(QuartzText.of("Done", "Gotowe"), b -> onClose())
-                .bounds(width / 2 + 5, height - 62, 125, 24).build());
+        return name.replaceFirst("(?i)\\.jar(?:\\.disabled)?$", "");
     }
 
-    private void toggle(Path file, String name, boolean enabled) {
+    private void move(int amount) { page += amount; rebuildWidgets(); }
+
+    private void toggle(Mod mod) {
+        String name = mod.file().getFileName().toString();
         try {
-            Path next = enabled
-                    ? file.resolveSibling(name + ".disabled")
-                    : file.resolveSibling(name.substring(0, name.length() - ".disabled".length()));
-            Files.move(file, next);
-            Minecraft.getInstance().gui.setScreen(new QuartzModListScreen(parent));
-        } catch (Exception ignored) { }
+            Path target = mod.file().resolveSibling(mod.enabled() ? name + ".disabled" : name.substring(0, name.length() - 9));
+            Files.move(mod.file(), target);
+            status = QuartzText.of("Restart Minecraft to apply the change.", "Uruchom grę ponownie, aby zastosować zmianę.");
+            rebuildWidgets();
+        } catch (Exception error) {
+            status = QuartzText.of("Could not change the mod.", "Nie udało się zmienić stanu moda.");
+        }
     }
 
-    @Override
-    public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float delta) {
-        extractBackground(graphics, mouseX, mouseY, delta);
-        QuartzGraphics.center(graphics, font, title, width / 2, 18, 0xFFFFFFFF);
-        String count = mods.size() > Math.max(1, (height - 112) / 27)
-                ? QuartzText.of("Showing the first entries. Open the mods folder for the full list.",
-                    "Widoczne sa pierwsze pozycje. Otworz folder, aby zobaczyc cala liste.").getString()
-                : QuartzText.of("Changes take effect after restarting the game.",
-                    "Zmiany zaczna dzialac po ponownym uruchomieniu gry.").getString();
-        QuartzGraphics.center(graphics, font, count, width / 2, height - 34, 0xFFB8C7F2);
-        super.extractRenderState(graphics, mouseX, mouseY, delta);
+    private void nav(Component label, int y, boolean accent, Runnable action) {
+        if (y + 20 <= height - 12) add(label, left + 5, y, sidebar - 10, 20, accent, action);
     }
 
+    private QuartzButton add(Component text, int x, int y, int w, int h, boolean accent, Runnable action) {
+        return addRenderableWidget(new QuartzButton(text, x, y, w, h, accent, action));
+    }
+
+    private void open(Screen screen) { Minecraft.getInstance().gui.setScreen(screen); }
+    @Override public void onClose() { open(parent); }
+    @Override public void extractBackground(GuiGraphicsExtractor g, int x, int y, float delta) {}
+
     @Override
-    public void onClose() { Minecraft.getInstance().gui.setScreen(parent); }
+    public void extractRenderState(GuiGraphicsExtractor g, int mouseX, int mouseY, float delta) {
+        QuartzTheme.background(g, width, height);
+        QuartzTheme.card(g, left, 9, width - 2 * left, 25, QuartzTheme.WHITE, QuartzTheme.OUTLINE);
+        QuartzTheme.card(g, left, 40, sidebar, height - 50, 0xFFFCF4FE, QuartzTheme.OUTLINE);
+        g.text(font, QuartzText.of("QUARTZ   /   MODS", "QUARTZ   /   MODY"), left + 9, 18, QuartzTheme.ACCENT, false);
+        int contentLeft = left * 2 + sidebar;
+        for (int i = 0; i < limit && page * limit + i < mods.size(); i++) {
+            Mod mod = mods.get(page * limit + i);
+            int x = contentLeft + i % columns * (cardWidth + 8), y = 44 + i / columns * 60;
+            QuartzTheme.card(g, x, y, cardWidth, 54, QuartzTheme.WHITE, QuartzTheme.OUTLINE);
+            g.text(font, font.plainSubstrByWidth(mod.name(), cardWidth - 18), x + 8, y + 8, QuartzTheme.INK, false);
+            g.text(font, mod.enabled() ? QuartzText.of("Enabled", "Włączony") : QuartzText.of("Disabled", "Wyłączony"),
+                    x + 8, y + 20, mod.enabled() ? QuartzTheme.ACCENT : QuartzTheme.MUTED, false);
+        }
+        String footer = status == null ? mods.isEmpty() ? QuartzText.of("No mods in this instance.", "Brak modów w tej instancji.").getString() : "" : status.getString();
+        g.text(font, (page + 1) + "/" + pages, contentLeft + 28, height - 23, QuartzTheme.MUTED, false);
+        g.text(font, font.plainSubstrByWidth(footer, Math.max(0, bodyWidth - 88)), contentLeft + 86, height - 23, QuartzTheme.MUTED, false);
+        super.extractRenderState(g, mouseX, mouseY, delta);
+    }
 }

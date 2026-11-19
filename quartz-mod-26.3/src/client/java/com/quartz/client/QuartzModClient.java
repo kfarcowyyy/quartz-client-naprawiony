@@ -8,6 +8,7 @@ import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.resources.Identifier;
+import org.slf4j.LoggerFactory;
 
 public final class QuartzModClient implements ClientModInitializer {
     private static KeyMapping openMenu;
@@ -15,8 +16,6 @@ public final class QuartzModClient implements ClientModInitializer {
     @Override
     public void onInitializeClient() {
         QuartzConfig.load();
-        QuartzWardrobe.refresh();
-        QuartzMultiplayerWardrobe.initialize();
         QuartzShotPreview.start();
         openMenu = KeyMappingHelper.registerKeyMapping(new KeyMapping(
                 "key.quartz.open_menu", InputConstants.Type.KEYBOARD, InputConstants.KEY_RSHIFT,
@@ -24,10 +23,18 @@ public final class QuartzModClient implements ClientModInitializer {
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             QuartzTitleScreen.replaceVanilla(client);
             QuartzWardrobe.tick();
-            if (client.getConnection() != null) QuartzMultiplayerWardrobe.tick();
             QuartzShotPreview.tick();
             while (openMenu.consumeClick()) {
-                if (client.gui.screen() == null && client.player != null) client.gui.setScreen(new QuartzMenuScreen(null));
+                if (client.gui.screen() == null && client.player != null) {
+                    try {
+                        client.gui.setScreen(new QuartzMenuScreen(null));
+                    } catch (RuntimeException error) {
+                        LoggerFactory.getLogger("Quartz Client").error("Could not open the Quartz mods screen", error);
+                        client.gui.setScreen(null);
+                        client.player.displayClientMessage(QuartzText.of("Could not open Quartz menu. See the game log.",
+                                "Nie udało się otworzyć menu Quartz. Sprawdź dziennik gry."), false);
+                    }
+                }
             }
         });
         HudElementRegistry.addLast(Identifier.fromNamespaceAndPath("quartz", "main_hud"), (graphics, tickCounter) -> {

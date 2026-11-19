@@ -222,3 +222,14 @@ pre#log {
 .wardrobe-item img { width: 72px; height: 72px; object-fit: contain; image-rendering: pixelated; }
 .wardrobe-item svg { margin: 21px; }
 .wardrobe-item small { color: #6b527c; }
+
+.wardrobe-tabs { display:flex; gap:8px; margin: 14px 0; }
+.wardrobe-tabs button[aria-pressed="true"] { background:#efe3fb; border-color:#a980ce; color:#42236c; }
+.wardrobe-content { min-height:200px; animation:wardrobe-in .18s ease-out; }
+.wardrobe-tools { display:flex; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:18px; }
+.wardrobe-tools label { display:flex; gap:7px; align-items:center; color:#514367; }
+.wardrobe-item { cursor:default; transition:background .16s ease,border-color .16s ease,box-shadow .16s ease; }
+.wardrobe-item-actions { display:flex; flex-wrap:wrap; justify-content:center; gap:5px; }
+.wardrobe-empty { color:#625371; text-align:center; padding:30px 10px; }
+@keyframes wardrobe-in { from { opacity:0; transform:translateY(4px); } to { opacity:1; transform:none; } }
+@media (prefers-reduced-motion: reduce) { .wardrobe-content { animation:none; } }

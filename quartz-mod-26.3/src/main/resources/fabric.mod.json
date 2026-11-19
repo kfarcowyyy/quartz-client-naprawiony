@@ -8,7 +8,6 @@
   "license": "MIT",
   "environment": "*",
   "entrypoints": {
-    "main": ["com.quartz.network.QuartzWardrobeSync"],
     "client": ["com.quartz.client.QuartzModClient"]
   },
   "mixins": [{ "config": "quartz.client.mixins.json", "environment": "client" }],

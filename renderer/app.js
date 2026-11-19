@@ -191,7 +191,6 @@ function openNewInstance() {
       </select>
     </label>
     <label class="check"><input type="checkbox" id="n-voice" ${state.settings.voicechat ? 'checked' : ''}/> Simple Voice Chat</label>
-    <label class="check"><input type="checkbox" id="n-opt" ${state.settings.optimize ? 'checked' : ''}/> Paczka optymalizacji (Sodium, Lithium, Iris, Mod Menu...)</label>
     <div class="row" style="justify-content:flex-end;margin-top:8px">
       <button class="btn" id="n-cancel">Anuluj</button>
       <button class="btn primary" id="n-ok">Utwórz</button>
@@ -218,7 +217,6 @@ function openNewInstance() {
         mcVersion: $('#n-ver').value,
         loader: $('#n-loader').value,
         voicechat: $('#n-voice').checked,
-        optimize: $('#n-opt').checked,
       });
       state.selected = inst.id;
       root.innerHTML = '';
@@ -399,7 +397,6 @@ function viewSettings() {
         <input type="range" id="ram" min="1024" max="16384" step="512" value="${s.ram}" />
       </label>
       <label class="check"><input type="checkbox" id="s-voice" ${s.voicechat ? 'checked' : ''}/> Automatycznie dodawaj Simple Voice Chat (każda instancja i modpack)</label>
-      <label class="check"><input type="checkbox" id="s-opt" ${s.optimize ? 'checked' : ''}/> Paczka optymalizacji domyślnie przy nowych instancjach</label>
     </section>
     <section class="card">
       <label class="field">Klucz API CurseForge (darmowy z console.curseforge.com)
@@ -418,7 +415,6 @@ function bindSettings() {
   ram.addEventListener('input', () => ($('#ram-val').textContent = ram.value + ' MB'));
   ram.addEventListener('change', () => save({ ram: Number(ram.value) }));
   $('#s-voice').addEventListener('change', (e) => save({ voicechat: e.target.checked }));
-  $('#s-opt').addEventListener('change', (e) => save({ optimize: e.target.checked }));
   $('#s-cf').addEventListener('change', (e) => save({ curseforgeKey: e.target.value.trim() }));
   $('#s-java').addEventListener('change', (e) => save({ javaPath: e.target.value.trim() }));
   $('#s-lang').value = state.settings.language || 'en';
