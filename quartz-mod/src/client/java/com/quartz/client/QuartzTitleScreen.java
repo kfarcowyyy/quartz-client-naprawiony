@@ -10,8 +10,11 @@ import net.minecraft.client.gui.screens.multiplayer.SafetyScreen;
 import net.minecraft.client.gui.screens.options.OptionsScreen;
 import net.minecraft.client.gui.screens.worldselection.SelectWorldScreen;
 import net.minecraft.network.chat.Component;
+import net.minecraft.client.renderer.RenderPipelines;
+import net.minecraft.resources.Identifier;
 
 public final class QuartzTitleScreen extends Screen {
+    private static final Identifier CRYSTAL = Identifier.fromNamespaceAndPath("quartz", "textures/wardrobe/quartz-crystal.png");
     private int left, top, panelWidth;
 
     private QuartzTitleScreen() { super(Component.literal("Quartz Client")); }
@@ -38,17 +41,19 @@ public final class QuartzTitleScreen extends Screen {
         panelWidth = Math.min(248, width - 28);
         int half = (panelWidth - 6) / 2;
         left = (width - panelWidth) / 2;
-        top = Math.max(53, (height - 91) / 2);
+        top = Math.max(92, (height - 58) / 2);
         add(Component.translatable("menu.singleplayer"), left, top, panelWidth, true,
                 () -> show(new SelectWorldScreen(this)));
         add(Component.translatable("menu.multiplayer"), left, top + 26, panelWidth, false,
                 () -> show(minecraft.options.skipMultiplayerWarning ? new JoinMultiplayerScreen(this) : new SafetyScreen(this)))
                 .active = minecraft.allowsMultiplayer();
-        add(QuartzText.of("Mods", "Mody"), left, top + 52, half, false, () -> show(new QuartzMenuScreen(this)));
-        add(QuartzText.of("Wardrobe", "Garderoba"), left + half + 6, top + 52, half, false,
-                () -> show(new QuartzWardrobeScreen(this)));
-        add(Component.translatable("menu.options"), left, top + 78, half, false, () -> show(new OptionsScreen(this, minecraft.options)));
-        add(Component.translatable("menu.quit"), left + half + 6, top + 78, half, false, minecraft::stop);
+        int gap = 5, tile = Math.min(89, (width - 36) / 4), nav = (width - 4 * tile - 3 * gap) / 2;
+        add(QuartzText.of("Mods", "Mody"), nav, 34, tile, false, () -> show(new QuartzMenuScreen(this)));
+        add(QuartzText.of("Wardrobe", "Garderoba"), nav + tile + gap, 34, tile, false, () -> show(new QuartzWardrobeScreen(this)));
+        add(QuartzText.of("Packs & shaders", "Paczki i shadery"), nav + 2 * (tile + gap), 34, tile, false, () -> show(new QuartzPacksScreen(this)));
+        add(QuartzText.of("Screenshots", "Zrzuty"), nav + 3 * (tile + gap), 34, tile, false, () -> show(new QuartzScreenshotScreen(this)));
+        add(Component.translatable("menu.options"), left, top + 53, half, false, () -> show(new OptionsScreen(this, minecraft.options)));
+        add(Component.translatable("menu.quit"), left + half + 6, top + 53, half, false, minecraft::stop);
         add(QuartzText.of("Classic menu", "Klasyczne menu"), 8, height - 28, 112, false, () -> {
             QuartzConfig.data.classicMenu = true;
             QuartzConfig.save();
@@ -67,11 +72,16 @@ public final class QuartzTitleScreen extends Screen {
     @Override
     public void render(GuiGraphics g, int mouseX, int mouseY, float delta) {
         QuartzTheme.background(g, width, height);
-        QuartzTheme.card(g, 8, 8, width - 16, 23, QuartzTheme.WHITE, QuartzTheme.OUTLINE);
-        g.drawString(font, "QUARTZ  /  CLIENT", 17, 16, QuartzTheme.ACCENT, false);
-        String tagline = font.plainSubstrByWidth("High Performance Minecraft Client", Math.max(0, width - 118));
-        g.drawString(font, tagline, width - 17 - font.width(tagline), 16, QuartzTheme.MUTED, false);
-        QuartzTheme.card(g, left - 10, top - 19, panelWidth + 20, 127, 0xFFFAF6FE, QuartzTheme.OUTLINE);
+        String account = QuartzText.of("Account: ", "Konto: ").getString() + minecraft.getUser().getName();
+        int badgeWidth = Math.min(width - 16, font.width(account) + 18);
+        String visibleAccount = font.plainSubstrByWidth(account, badgeWidth - 16);
+        QuartzTheme.card(g, width - badgeWidth - 8, 8, badgeWidth, 19, QuartzTheme.WHITE, QuartzTheme.OUTLINE);
+        g.drawString(font, visibleAccount, width - badgeWidth + 1, 14, QuartzTheme.INK, false);
+        String brand = "Quartz Client";
+        int brandX = (width - 26 - font.width(brand)) / 2, brandY = top - 34;
+        g.blit(RenderPipelines.GUI_TEXTURED, CRYSTAL, brandX, brandY, 0, 0, 16, 24, 16, 24);
+        g.drawString(font, brand, brandX + 25, brandY + 8, QuartzTheme.ACCENT, false);
+        QuartzTheme.card(g, left - 10, top - 7, panelWidth + 20, 89, 0xFFFAF6FE, QuartzTheme.OUTLINE);
         super.render(g, mouseX, mouseY, delta);
     }
 }

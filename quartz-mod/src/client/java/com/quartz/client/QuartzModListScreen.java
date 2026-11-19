@@ -20,6 +20,8 @@ public class QuartzModListScreen extends Screen {
     private final Screen parent;
     private final List<Mod> mods = new ArrayList<>();
     private int page, pages, columns, rows, left, bodyWidth, sidebar, cardWidth, limit;
+    private enum Filter { ALL, ENABLED, DISABLED }
+    private Filter filter = Filter.ALL;
     private Component status;
 
     public QuartzModListScreen(Screen parent) {
@@ -35,7 +37,7 @@ public class QuartzModListScreen extends Screen {
         bodyWidth = width - 3 * left - sidebar;
         columns = bodyWidth >= 350 ? 3 : bodyWidth >= 200 ? 2 : 1;
         cardWidth = (bodyWidth - 8 * (columns - 1)) / columns;
-        rows = Math.max(1, (height - 80) / 60);
+        rows = Math.max(1, (height - 103) / 60);
         limit = rows * columns;
         pages = Math.max(1, (mods.size() + limit - 1) / limit);
         page = Math.min(page, pages - 1);
@@ -47,11 +49,15 @@ public class QuartzModListScreen extends Screen {
         nav(QuartzText.of("Screenshots", "Zrzuty ekranu"), 165, false, () -> open(new QuartzScreenshotScreen(this)));
         add(Component.literal("×"), width - left - 24, 12, 24, 20, false, this::onClose);
         int contentLeft = left * 2 + sidebar;
+        int pill = (bodyWidth - 12) / 3;
+        filter(QuartzText.of("All", "Wszystkie"), contentLeft, pill, Filter.ALL);
+        filter(QuartzText.of("Enabled", "Włączone"), contentLeft + pill + 6, pill, Filter.ENABLED);
+        filter(QuartzText.of("Disabled", "Wyłączone"), contentLeft + (pill + 6) * 2, pill, Filter.DISABLED);
         add(Component.literal("‹"), contentLeft, height - 28, 23, 18, false, () -> move(-1)).active = page > 0;
         add(Component.literal("›"), contentLeft + 58, height - 28, 23, 18, false, () -> move(1)).active = page + 1 < pages;
         for (int i = 0; i < limit && page * limit + i < mods.size(); i++) {
             Mod item = mods.get(page * limit + i);
-            int x = contentLeft + i % columns * (cardWidth + 8), y = 44 + i / columns * 60;
+            int x = contentLeft + i % columns * (cardWidth + 8), y = 68 + i / columns * 60;
             Component label = item.managed() ? QuartzText.of("Built in", "Wbudowany")
                     : item.enabled() ? QuartzText.of("Disable", "Wyłącz") : QuartzText.of("Enable", "Włącz");
             add(label, x + 7, y + 31, cardWidth - 14, 17, false, () -> toggle(item)).active = !item.managed();
@@ -68,7 +74,9 @@ public class QuartzModListScreen extends Screen {
                 String lower = name.toLowerCase(Locale.ROOT);
                 if (!lower.endsWith(".jar") && !lower.endsWith(".jar.disabled")) return;
                 boolean managed = lower.startsWith("quartz-client-managed") || lower.startsWith("quartz-fabric-api-managed");
-                mods.add(new Mod(file, modName(file, name), lower.endsWith(".jar"), managed));
+                boolean enabled = lower.endsWith(".jar");
+                if (filter == Filter.ENABLED && !enabled || filter == Filter.DISABLED && enabled) return;
+                mods.add(new Mod(file, modName(file, name), enabled, managed));
             });
         } catch (Exception error) {
             status = QuartzText.of("Could not open the mods folder.", "Nie udało się odczytać folderu mods.");
@@ -86,6 +94,14 @@ public class QuartzModListScreen extends Screen {
             }
         } catch (Exception ignored) { }
         return name.replaceFirst("(?i)\\.jar(?:\\.disabled)?$", "");
+    }
+
+    private void filter(Component label, int x, int w, Filter next) {
+        add(label, x, 42, w, 19, filter == next, () -> {
+            filter = next;
+            page = 0;
+            rebuildWidgets();
+        });
     }
 
     private void move(int amount) { page += amount; rebuildWidgets(); }
@@ -123,13 +139,13 @@ public class QuartzModListScreen extends Screen {
         int contentLeft = left * 2 + sidebar;
         for (int i = 0; i < limit && page * limit + i < mods.size(); i++) {
             Mod mod = mods.get(page * limit + i);
-            int x = contentLeft + i % columns * (cardWidth + 8), y = 44 + i / columns * 60;
+            int x = contentLeft + i % columns * (cardWidth + 8), y = 68 + i / columns * 60;
             QuartzTheme.card(g, x, y, cardWidth, 54, QuartzTheme.WHITE, QuartzTheme.OUTLINE);
             g.drawString(font, font.plainSubstrByWidth(mod.name(), cardWidth - 18), x + 8, y + 8, QuartzTheme.INK, false);
             g.drawString(font, mod.enabled() ? QuartzText.of("Enabled", "Włączony") : QuartzText.of("Disabled", "Wyłączony"),
                     x + 8, y + 20, mod.enabled() ? QuartzTheme.ACCENT : QuartzTheme.MUTED, false);
         }
-        String footer = status == null ? mods.isEmpty() ? QuartzText.of("No mods in this instance.", "Brak modów w tej instancji.").getString() : "" : status.getString();
+        String footer = status == null ? mods.isEmpty() ? QuartzText.of("No matching mods.", "Brak modów w tym widoku.").getString() : "" : status.getString();
         g.drawString(font, (page + 1) + "/" + pages, contentLeft + 28, height - 23, QuartzTheme.MUTED, false);
         g.drawString(font, font.plainSubstrByWidth(footer, Math.max(0, bodyWidth - 88)), contentLeft + 86, height - 23, QuartzTheme.MUTED, false);
         super.render(g, mouseX, mouseY, delta);

@@ -17,12 +17,15 @@ final class QuartzTheme {
     }
 
     static void rounded(GuiGraphics g, int x, int y, int w, int h, int color) {
-        if (w < 6 || h < 6) { g.fill(x, y, x + w, y + h, color); return; }
-        g.fill(x + 3, y, x + w - 3, y + 1, color);
-        g.fill(x + 1, y + 1, x + w - 1, y + 3, color);
-        g.fill(x, y + 3, x + w, y + h - 3, color);
-        g.fill(x + 1, y + h - 3, x + w - 1, y + h - 1, color);
-        g.fill(x + 3, y + h - 1, x + w - 3, y + h, color);
+        if (w <= 0 || h <= 0) return;
+        int radius = Math.min(7, Math.min(w, h) / 2);
+        g.fill(x, y + radius, x + w, y + h - radius, color);
+        for (int row = 0; row < radius; row++) {
+            double dy = radius - row - 0.5;
+            int inset = (int) Math.round(radius - Math.sqrt(radius * radius - dy * dy));
+            g.fill(x + inset, y + row, x + w - inset, y + row + 1, color);
+            g.fill(x + inset, y + h - 1 - row, x + w - inset, y + h - row, color);
+        }
     }
 
     static void card(GuiGraphics g, int x, int y, int w, int h, int background, int line) {

@@ -31,8 +31,6 @@ public final class QuartzModClient implements ClientModInitializer {
                     } catch (RuntimeException error) {
                         LoggerFactory.getLogger("Quartz Client").error("Could not open the Quartz mods screen", error);
                         client.gui.setScreen(null);
-                        client.player.displayClientMessage(QuartzText.of("Could not open Quartz menu. See the game log.",
-                                "Nie udało się otworzyć menu Quartz. Sprawdź dziennik gry."), false);
                     }
                 }
             }

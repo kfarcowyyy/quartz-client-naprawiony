@@ -38,6 +38,7 @@ jobs:
           grep -Fx 'com/quartz/client/QuartzTitleScreen.class' dist/jar-entries.txt
           grep -Fx 'com/quartz/client/QuartzWardrobeScreen.class' dist/jar-entries.txt
           grep -Fx 'com/quartz/client/QuartzModListScreen.class' dist/jar-entries.txt
+          grep -Fx 'com/quartz/client/QuartzPackDownloads.class' dist/jar-entries.txt
           grep -Fx 'assets/quartz/textures/wardrobe/quartz-crystal.png' dist/jar-entries.txt
           grep -Fx 'fabric.mod.json' dist/jar-entries.txt
           cp "$jar" "dist/Quartz-Client-Mod-${{ matrix.target.id }}.jar"
