@@ -1,93 +1,100 @@
 package com.quartz.client;
 
-import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
-import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.input.MouseButtonEvent;
 
 public final class QuartzHudEditorScreen extends QuartzSafeScreen {
     private final Screen parent;
+    private QuartzHudModule selected;
     private boolean dragging;
     private int dragX, dragY;
 
-    public QuartzHudEditorScreen(Screen parent) {
-        super(QuartzText.of("HUD layout", "Pozycja HUD"));
+    public QuartzHudEditorScreen(Screen parent) { this(parent, QuartzHudModule.FPS); }
+
+    QuartzHudEditorScreen(Screen parent, QuartzHudModule module) {
+        super(QuartzText.of("HUD layout", "Układ HUD"));
         this.parent = parent;
+        selected = module;
     }
 
-    @Override
-    protected void init() {
-        addRenderableWidget(Button.builder(QuartzText.of("Done", "Gotowe"), b -> onClose())
-                .bounds(width / 2 - 60, height - 40, 120, 24).build());
+    @Override protected void init() {
+        int span = Math.min(width - 12, 360), left = (width - span) / 2, unit = (span - 12) / 3;
+        addRenderableWidget(new QuartzButton(selected.label(), left, 5, unit, 20, true, () -> {
+            var modules = QuartzHudModule.values();
+            selected = modules[(selected.ordinal() + 1) % modules.length];
+            rebuildWidgets();
+        }));
+        addRenderableWidget(new QuartzButton(QuartzText.of("Appearance", "Wygląd"), left + unit + 6, 5, unit, 20, false,
+                () -> minecraft.gui.setScreen(new QuartzHudSettingsScreen(this, selected))));
+        addRenderableWidget(new QuartzButton(QuartzText.of("Done", "Gotowe"), left + 2 * (unit + 6), 5, unit, 20, false, this::onClose));
     }
 
-    @Override
-    protected void drawQuartz(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float delta) {
-        graphics.fillGradient(0, 0, width, height, 0x3B1D1230, 0x9C1D1230);
-        String sample = preview();
-        int x = panelX(), y = panelY();
-        graphics.fill(x, y, x + font.width(sample) + 12, y + 18, QuartzConfig.data.background);
-        graphics.text(font, sample, x + 6, y + 5, QuartzConfig.data.foreground, false);
-        QuartzGraphics.center(graphics, font,
-                QuartzText.of("Drag the HUD panel to move it", "Przeciagnij panel, aby go przesunac"),
-                width / 2, Math.max(4, height - 52), 0xFFFFFFFF);
-        drawWidgets(graphics, mouseX, mouseY, delta);
-    }
+    @Override public boolean isPauseScreen() { return false; }
 
-    @Override
-    public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
-        double mouseX = event.x(), mouseY = event.y();
-        int x = panelX(), y = panelY();
-        int w = panelWidth();
-        if (event.button() == com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT && mouseX >= x && mouseX <= x + w && mouseY >= y && mouseY < y + 18) {
-            dragging = true;
-            dragX = (int) mouseX - x;
-            dragY = (int) mouseY - y;
-            return true;
+    @Override protected void drawQuartz(GuiGraphicsExtractor g, int mx, int my, float delta) {
+        g.fill(0, 0, width, height, 0x341E152C);
+        for (QuartzHudModule module : QuartzHudModule.values()) {
+            if (module.settings().enabled && module != selected) panel(g, module, false);
         }
-        return super.mouseClicked(event, doubleClick);
+        panel(g, selected, true);
+        drawWidgets(g, mx, my, delta);
     }
 
-    @Override
-    public boolean mouseDragged(MouseButtonEvent event, double deltaX, double deltaY) {
-        if (dragging && event.button() == com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT) {
-            QuartzConfig.data.hudX = clamp((int) event.x() - dragX, width - panelWidth());
-            QuartzConfig.data.hudY = clamp((int) event.y() - dragY, height - 62);
-            return true;
+    private void panel(GuiGraphicsExtractor g, QuartzHudModule module, boolean selected) {
+        var panel = QuartzHud.panel(module, minecraft, true, width, height);
+        var p = QuartzHud.position(module.settings(), panel, width, height);
+        if (selected) {
+            int x = p.x(), y = p.y(), right = x + panel.width(), bottom = y + panel.height();
+            g.fill(x, y, right, y + 1, 0xFFE9C7FB);
+            g.fill(x, bottom - 1, right, bottom, 0xFFE9C7FB);
+            g.fill(x, y, x + 1, bottom, 0xFFE9C7FB);
+            g.fill(right - 1, y, right, bottom, 0xFFE9C7FB);
         }
-        return super.mouseDragged(event, deltaX, deltaY);
+        QuartzHud.draw(g, minecraft, module, panel, p.x(), p.y());
     }
 
-    @Override
-    public boolean mouseReleased(MouseButtonEvent event) {
-        if (dragging && event.button() == com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT) {
-            dragging = false;
-            QuartzConfig.save();
-            return true;
+    @Override public boolean mouseClicked(MouseButtonEvent e, boolean doubleClick) {
+        if (super.mouseClicked(e, doubleClick)) return true;
+        if (e.button() != 0) return false;
+        if (select(e, selected)) return true;
+        for (QuartzHudModule module : QuartzHudModule.values()) {
+            if (module != selected && module.settings().enabled && select(e, module)) return true;
         }
-        return super.mouseReleased(event);
+        return false;
     }
 
-    private String preview() {
-        String text = QuartzConfig.hudTemplate().replace("{fps}", "144").replace("{cps}", "8 | 3");
-        return font.plainSubstrByWidth(text, Math.max(0, width - 12));
+    private boolean select(MouseButtonEvent e, QuartzHudModule module) {
+        var panel = QuartzHud.panel(module, minecraft, true, width, height);
+        var p = QuartzHud.position(module.settings(), panel, width, height);
+        double x = e.x() - p.x(), y = e.y() - p.y();
+        if (x < 0 || x >= panel.width() || y < 0 || y >= panel.height()) return false;
+        selected = module;
+        dragging = true;
+        dragX = (int) x;
+        dragY = (int) y;
+        rebuildWidgets();
+        return true;
     }
 
-    private int panelWidth() { return font.width(preview()) + 12; }
-    private int panelX() { return clamp(QuartzConfig.data.hudX, width - panelWidth()); }
-    private int panelY() { return clamp(QuartzConfig.data.hudY, height - 62); }
-
-    private static int clamp(int value, int max) { return Math.max(0, Math.min(max, value)); }
-
-    @Override
-    public void removed() {
-        if (dragging) {
-            dragging = false;
-            QuartzConfig.save();
-        }
+    @Override public boolean mouseDragged(MouseButtonEvent e, double dx, double dy) {
+        if (!dragging || e.button() != 0) return super.mouseDragged(e, dx, dy);
+        var panel = QuartzHud.panel(selected, minecraft, true, width, height);
+        QuartzHud.move(selected.settings(), panel, (int) e.x() - dragX, (int) e.y() - dragY, width, height);
+        return true;
     }
 
-    @Override
-    public void onClose() { Minecraft.getInstance().gui.setScreen(parent); }
+    @Override public boolean mouseReleased(MouseButtonEvent e) {
+        if (!dragging || e.button() != 0) return super.mouseReleased(e);
+        removed();
+        return true;
+    }
+
+    @Override public void removed() {
+        if (!dragging) return;
+        dragging = false;
+        QuartzConfig.save();
+    }
+
+    @Override public void onClose() { minecraft.gui.setScreen(parent); }
 }

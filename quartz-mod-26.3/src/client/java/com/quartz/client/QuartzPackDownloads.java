@@ -34,10 +34,11 @@ final class QuartzPackDownloads {
         Kind(String type, String folder) { this.type = type; this.folder = folder; }
     }
 
-    record Project(String id, String title) {}
+    record Project(String id, String title, String description, String icon) {}
+    record Details(String body, String license, List<String> versions, List<String> gallery) {}
     record Results(List<Project> items, int total) {}
     private static final long MAX_DOWNLOAD = 128L * 1024 * 1024;
-    private static final String VERSION = "26.3";
+    static final String VERSION = "26.3";
     private static final String ROOT = "https://api.modrinth.com/v2";
     private static final HttpClient HTTP = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(8))
             .followRedirects(HttpClient.Redirect.NEVER).build();
@@ -45,17 +46,18 @@ final class QuartzPackDownloads {
 
     private QuartzPackDownloads() {}
 
-    static CompletableFuture<Results> search(Kind kind, String query, int offset, int size) {
+    static CompletableFuture<Results> search(Kind kind, String query, String version, int offset, int size) {
         return CompletableFuture.supplyAsync(() -> {
             try {
-                String facets = "[[\"project_type:" + kind.type + "\"],[\"versions:" + VERSION + "\"]]";
+                String facets = "[[\"project_type:" + kind.type + "\"]"
+                        + (version.isEmpty() ? "" : ",[\"versions:" + version + "\"]") + "]";
                 JsonObject response = get(ROOT + "/search?limit=" + size + "&offset=" + offset + "&query="
                         + enc(query) + "&facets=" + enc(facets)).getAsJsonObject();
                 List<Project> projects = new ArrayList<>();
                 for (var hit : response.getAsJsonArray("hits")) {
                     JsonObject row = hit.getAsJsonObject();
                     String id = row.get("project_id").getAsString();
-                    if (id.matches("[A-Za-z0-9]{1,32}")) projects.add(new Project(id, row.get("title").getAsString()));
+                    if (id.matches("[A-Za-z0-9]{1,32}")) projects.add(new Project(id, value(row, "title"), value(row, "description"), value(row, "icon_url")));
                 }
                 return new Results(projects, response.get("total_hits").getAsInt());
             } catch (Exception error) { throw new CompletionException(error); }
@@ -82,6 +84,83 @@ final class QuartzPackDownloads {
                 throw new IOException("No compatible ZIP from Modrinth.");
             } catch (Exception error) { throw new CompletionException(error); }
         }, IO);
+    }
+
+    static CompletableFuture<List<String>> gameVersions() {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                var versions = new ArrayList<String>();
+                for (var record : get(ROOT + "/tag/game_version").getAsJsonArray()) {
+                    var row = record.getAsJsonObject();
+                    String version = value(row, "version");
+                    if ("release".equals(value(row, "version_type")) && version.matches("[0-9]+(?:\\.[0-9]+){1,2}")) {
+                        versions.add(version);
+                    }
+                }
+                return List.copyOf(versions);
+            } catch (Exception error) { throw new CompletionException(error); }
+        }, IO);
+    }
+
+    static CompletableFuture<Details> details(Project project) {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                JsonObject data = get(ROOT + "/project/" + project.id()).getAsJsonObject();
+                var gallery = new ArrayList<String>();
+                if (data.has("gallery") && data.get("gallery").isJsonArray()) {
+                    for (var entry : data.getAsJsonArray("gallery")) {
+                        String image = value(entry.getAsJsonObject(), "url");
+                        if (!image.isBlank()) gallery.add(image);
+                        if (gallery.size() == 24) break;
+                    }
+                }
+                var versions = new ArrayList<String>();
+                if (data.has("game_versions") && data.get("game_versions").isJsonArray()) {
+                    for (var entry : data.getAsJsonArray("game_versions")) versions.add(entry.getAsString());
+                }
+                String body = value(data, "body");
+                String license = data.has("license") && data.get("license").isJsonObject()
+                        ? value(data.getAsJsonObject("license"), "name") : "";
+                return new Details(body.isBlank() ? project.description() : body, license, versions, gallery);
+            } catch (Exception error) { throw new CompletionException(error); }
+        }, IO);
+    }
+
+    static CompletableFuture<byte[]> image(String link) {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                URI uri = URI.create(link);
+                if (!"https".equals(uri.getScheme()) || !"cdn.modrinth.com".equalsIgnoreCase(uri.getHost())
+                        || uri.getPort() != -1 || uri.getUserInfo() != null) return null;
+                var response = HTTP.send(request(uri, 12), HttpResponse.BodyHandlers.ofInputStream());
+                try (var stream = response.body()) {
+                    if (response.statusCode() != 200) return null;
+                    int limit = 6 * 1024 * 1024;
+                    byte[] bytes = stream.readNBytes(limit + 1);
+                    if (bytes.length > limit) return null;
+                    try (var input = new javax.imageio.stream.MemoryCacheImageInputStream(new java.io.ByteArrayInputStream(bytes));
+                         var output = new java.io.ByteArrayOutputStream()) {
+                        var readers = javax.imageio.ImageIO.getImageReaders(input);
+                        if (!readers.hasNext()) return null;
+                        var reader = readers.next();
+                        try {
+                            reader.setInput(input, true, true);
+                            int width = reader.getWidth(0), height = reader.getHeight(0);
+                            if (width < 1 || height < 1 || (long) width * height > 16_000_000) return null;
+                            var options = reader.getDefaultReadParam();
+                            int scale = Math.max(1, (Math.max(width, height) + 639) / 640);
+                            options.setSourceSubsampling(scale, scale, 0, 0);
+                            return javax.imageio.ImageIO.write(reader.read(0, options), "png", output) ? output.toByteArray() : null;
+                        } finally { reader.dispose(); }
+                    }
+                }
+            } catch (Exception error) { return null; }
+        }, IO);
+    }
+
+    private static String value(JsonObject object, String name) {
+        var item = object.get(name);
+        return item != null && item.isJsonPrimitive() ? item.getAsString() : "";
     }
 
     private static String download(JsonObject info, Path folder, Kind kind) throws Exception {
@@ -124,7 +203,7 @@ final class QuartzPackDownloads {
     }
 
     private static HttpRequest request(URI uri, int timeout) {
-        return HttpRequest.newBuilder(uri).header("User-Agent", "kfarcowyyy/quartz-client/0.2.4")
+        return HttpRequest.newBuilder(uri).header("User-Agent", "kfarcowyyy/quartz-client/0.2.6")
                 .timeout(Duration.ofSeconds(timeout)).GET().build();
     }
 
