@@ -2,8 +2,11 @@ name: Build Quartz Client
 on:
   push:
     branches: ["quartz-mod-first-build"]
+    tags: ["v*"]
   pull_request:
   workflow_dispatch:
+permissions:
+  contents: read
 jobs:
   build-mod:
     strategy:
@@ -74,8 +77,29 @@ jobs:
       - run: npm run dist
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: "false"
+      - name: Verify packaged startup files and bundled Fabric mods
+        run: node scripts/verify-windows-package.cjs
       - uses: actions/upload-artifact@v4
         with:
           name: Quartz-Client-Windows
           path: dist/Quartz-Client-*.exe
           if-no-files-found: error
+  release:
+    if: github.ref_type == 'tag' && startsWith(github.ref_name, 'v')
+    needs: windows
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: Quartz-Client-Windows
+          path: release-files
+      - name: Publish the Windows installer
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          version="${RELEASE_TAG#v}"
+          gh release create "$RELEASE_TAG" release-files/Quartz-Client-Setup-*.exe --verify-tag --generate-notes --title "Quartz Client $version"
